@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_light_grey"
+    tools:context=".LoginActivity"> <ImageView
+    android:id="@+id/logoLoginImageView"
+    android:layout_width="200dp"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="64dp"
+    android:adjustViewBounds="true"
+    android:src="@drawable/logo_zylogi"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
+
+    <View
+        android:id="@+id/lineView"
+        android:layout_width="100dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="24dp"
+        android:background="@color/zylogi_dark_blue"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/logoLoginImageView" />
+
+    <TextView
+        android:id="@+id/labelCpf"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="48dp"
+        android:text="CPF"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lineView" />
+
+    <EditText
+        android:id="@+id/editTextCpf"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/edit_text_background"
+        android:hint="000.000.000-00"
+        android:inputType="number"
+        android:padding="12dp"
+        app:layout_constraintEnd_toEndOf="@id/labelCpf"
+        app:layout_constraintStart_toStartOf="@id/labelCpf"
+        app:layout_constraintTop_toBottomOf="@id/labelCpf" />
+
+    <TextView
+        android:id="@+id/labelSenha"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Senha"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="@id/labelCpf"
+        app:layout_constraintEnd_toEndOf="@id/labelCpf"
+        app:layout_constraintTop_toBottomOf="@id/editTextCpf" />
+
+    <EditText
+        android:id="@+id/editTextSenha"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/edit_text_background"
+        android:hint="********"
+        android:inputType="textPassword"
+        android:padding="12dp"
+        app:layout_constraintEnd_toEndOf="@id/labelSenha"
+        app:layout_constraintStart_toStartOf="@id/labelSenha"
+        app:layout_constraintTop_toBottomOf="@id/labelSenha" />
+
+    <TextView
+        android:id="@+id/hintSenha"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Digite sua senha"
+        android:textColor="@color/zylogi_grey"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="@id/editTextSenha"
+        app:layout_constraintTop_toBottomOf="@id/editTextSenha" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/loginButton"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="32dp"
+        android:backgroundTint="@color/zylogi_dark_blue"
+        android:text="Login"
+        android:textAllCaps="false"
+        android:textSize="18sp"
+        app:cornerRadius="28dp"
+        app:icon="@drawable/ic_fingerprint"
+        app:iconGravity="textStart"
+        app:iconPadding="12dp"
+        app:iconTint="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/versionText"
+        app:layout_constraintEnd_toEndOf="@id/editTextSenha"
+        app:layout_constraintStart_toStartOf="@id/editTextSenha" />
+
+    <TextView
+        android:id="@+id/versionText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="1.0.0"
+        android:textColor="@color/zylogi_grey"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

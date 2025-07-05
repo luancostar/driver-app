@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <color name="zylogi_dark_blue">#0D204E</color>
+    <color name="zylogi_light_blue">#34A8DF</color>
+    <color name="zylogi_grey">#888888</color>
+    <color name="background_light_grey">#F5F5F5</color>
+</resources>
