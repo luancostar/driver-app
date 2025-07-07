@@ -1,13 +1,15 @@
-package com.example.zylogi_motoristas;// Local: app/src/main/java/com/example/zylogi_motoristas/LoginViewModel.java
+package com.example.zylogi_motoristas;
 
+import android.app.Application; // Importe
+import androidx.annotation.NonNull; // Importe
+import androidx.lifecycle.AndroidViewModel; // Mude de ViewModel para AndroidViewModel
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class LoginViewModel extends ViewModel {
+public class LoginViewModel extends AndroidViewModel { // MUDANÇA AQUI
 
     private final MutableLiveData<LoginResponse> _loginResult = new MutableLiveData<>();
     public LiveData<LoginResponse> loginResult = _loginResult;
@@ -18,10 +20,13 @@ public class LoginViewModel extends ViewModel {
     private final MutableLiveData<String> _error = new MutableLiveData<>();
     public LiveData<String> error = _error;
 
-    private final ApiService apiService;
+    private ApiService apiService;
 
-    public LoginViewModel() {
-        apiService = RetrofitClient.getClient().create(ApiService.class);
+    // O construtor agora recebe o contexto da aplicação
+    public LoginViewModel(@NonNull Application application) {
+        super(application);
+        // E o passa para o RetrofitClient
+        apiService = RetrofitClient.getClient(application).create(ApiService.class);
     }
 
     public void login(String cpf, String password) {
