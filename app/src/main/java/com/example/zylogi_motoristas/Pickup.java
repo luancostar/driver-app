@@ -20,4 +20,8 @@ public class Pickup {
     public String getObservation() { return observation; }
     public Client getClient() { return client; }
     public ClientAddress getClientAddress() { return clientAddress; }
+
+    public String getStatus() {
+        return "";
+    }
 }

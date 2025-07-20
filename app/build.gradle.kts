@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.play.services.cast.framework)
     implementation(libs.security.crypto)
     implementation(libs.biometric)
+    implementation(libs.swiperefreshlayout)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     // ADICIONADO: Dependências para a arquitetura MVVM (ViewModel e LiveData)

@@ -1,53 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:layout_margin="12dp"
+    card_view:cardCornerRadius="16dp"
+    card_view:cardElevation="8dp"
+    android:background="@android:color/white">
 
-    <TextView
-        android:id="@+id/textViewCompanyName"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Nome da Empresa"
-        android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:textSize="18sp"/>
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <TextView
-        android:id="@+id/textViewContactName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Contato: Nome da Pessoa"
-        android:layout_marginTop="4dp"/>
+        <TextView
+            android:id="@+id/textViewCompanyName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nome da Empresa"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"/>
 
-    <TextView
-        android:id="@+id/textViewPhone"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Telefone: (00) 00000-0000"/>
+        <TextView
+            android:id="@+id/textViewContactName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Contato: Nome da Pessoa"
+            android:layout_marginTop="4dp"/>
 
-    <TextView
-        android:id="@+id/textViewFullAddress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Rua, Número, Bairro, Cidade - CEP"
-        android:layout_marginTop="8dp"/>
+        <TextView
+            android:id="@+id/textViewPhone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Telefone: (00) 00000-0000"/>
 
-    <TextView
-        android:id="@+id/textViewObservation"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Observação: Nenhuma"
-        android:layout_marginTop="8dp"
-        android:textStyle="italic"/>
+        <TextView
+            android:id="@+id/textViewFullAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rua, Número, Bairro, Cidade - CEP"
+            android:layout_marginTop="8dp"/>
 
-    <TextView
-        android:id="@+id/textViewIsFragile"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Frágil: Não"
-        android:textStyle="bold"
-        android:layout_marginTop="4dp"/>
-</LinearLayout>
+        <TextView
+            android:id="@+id/textViewObservation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Observação: Nenhuma"
+            android:layout_marginTop="8dp"
+            android:textStyle="italic"/>
+
+        <TextView
+            android:id="@+id/textViewIsFragile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Frágil: Não"
+            android:textStyle="bold"
+            android:layout_marginTop="4dp"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
