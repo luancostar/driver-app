@@ -6,6 +6,10 @@ import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Query;
 import java.util.List;
+import retrofit2.http.Field;
+import retrofit2.http.FormUrlEncoded;
+import retrofit2.http.PATCH;
+import retrofit2.http.Path;
 
 public interface ApiService {
 
@@ -17,6 +21,13 @@ public interface ApiService {
             @Query("driverId") String driverId,
             @Query("startDate") String startDate,
             @Query("endDate") String endDate
+    );
+
+    @FormUrlEncoded
+    @PATCH("pickups/{id}/driver-finalize")
+    Call<Pickup> finalizePickup(
+            @Path("id") String pickupId,
+            @Field("status") String status
     );
 
 }

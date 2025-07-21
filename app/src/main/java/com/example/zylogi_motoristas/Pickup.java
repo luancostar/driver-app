@@ -3,6 +3,15 @@ package com.example.zylogi_motoristas;
 import com.google.gson.annotations.SerializedName;
 
 public class Pickup {
+
+    // ADICIONADO: Declaração da variável 'id'
+    @SerializedName("id")
+    private String id;
+
+    // ADICIONADO: Declaração da variável 'status'
+    @SerializedName("status")
+    private String status;
+
     @SerializedName("isFragile")
     private boolean isFragile;
 
@@ -21,7 +30,13 @@ public class Pickup {
     public Client getClient() { return client; }
     public ClientAddress getClientAddress() { return clientAddress; }
 
+    // CORRIGIDO: Agora retorna o valor da variável 'status'
     public String getStatus() {
-        return "";
+        return status;
+    }
+
+    // CORRIGIDO: Agora retorna o valor da variável 'id'
+    public String getId() {
+        return id;
     }
 }

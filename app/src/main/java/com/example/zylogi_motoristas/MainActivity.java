@@ -1,20 +1,25 @@
 package com.example.zylogi_motoristas;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 
-public class MainActivity extends AppCompatActivity {
+// 1. A Activity agora "assina o contrato" do listener do Adapter
+public class MainActivity extends AppCompatActivity implements PickupAdapter.OnPickupActionClickListener {
 
-    private MainViewModel mainViewModel; // Declarado, mas ainda nulo
+    private MainViewModel mainViewModel;
     private RecyclerView carouselRecyclerView;
     private PickupAdapter carouselAdapter;
     private FloatingActionButton fabSync;
@@ -29,22 +34,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Associa os componentes da tela
         setupViews();
-        // Configura o carrossel
         setupCarousel();
 
-        // **A CORREÇÃO ESTÁ AQUI**
-        // Primeiro, inicializamos o ViewModel. Agora `mainViewModel` não é mais nulo.
         mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
-        // Agora que o ViewModel existe, podemos configurar os listeners que o usam
         setupListeners();
-
-        // E também podemos observar seus dados
         observeViewModel();
 
-        // Busca os dados pela primeira vez
         mainViewModel.fetchPickups();
     }
 
@@ -59,7 +56,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupCarousel() {
         carouselRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        carouselAdapter = new PickupAdapter();
+        // 2. A Activity (this) é passada como o listener para o Adapter
+        carouselAdapter = new PickupAdapter(this);
         carouselRecyclerView.setAdapter(carouselAdapter);
         new LinearSnapHelper().attachToRecyclerView(carouselRecyclerView);
     }
@@ -70,13 +68,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void observeViewModel() {
-        // Agora, quando este método é chamado, 'mainViewModel' já foi inicializado e não é nulo.
-        mainViewModel.pickups.observe(this, pickups -> {
-            if (pickups != null) {
-                carouselAdapter.setPickups(pickups);
+        // MUDANÇA AQUI: Observa a nova lista de coletas ABERTAS
+        mainViewModel.openPickups.observe(this, openPickups -> {
+            if (openPickups != null) {
+                // Atualiza o adapter do carrossel com a lista filtrada
+                carouselAdapter.setPickups(openPickups);
             }
         });
 
+        // O resto dos observers continua exatamente o mesmo
         mainViewModel.progressPercentage.observe(this, percentage -> {
             progressIndicator.setProgress(percentage, true);
             textViewProgressPercentage.setText(String.format("%d%%", percentage));
@@ -95,5 +95,34 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, error, Toast.LENGTH_LONG).show();
             }
         });
+
+        mainViewModel.updateResult.observe(this, message -> {
+            if (message != null) {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    // 3. Implementação dos métodos obrigatórios do listener
+    @Override
+    public void onCollectedClick(Pickup pickup) {
+        showConfirmationDialog(pickup, "COLETADO", "COMPLETED");
+    }
+
+    @Override
+    public void onNotCollectedClick(Pickup pickup) {
+        showConfirmationDialog(pickup, "NÃO COLETADO", "NOT_COMPLETED");
+    }
+
+    // 4. Método que cria e exibe o diálogo de confirmação
+    private void showConfirmationDialog(final Pickup pickup, String actionText, final String statusToSend) {
+        new AlertDialog.Builder(this)
+                .setTitle("Confirmar Ação")
+                .setMessage("Deseja realmente marcar esta coleta como " + actionText + "?")
+                .setPositiveButton("Sim", (dialog, which) -> {
+                    // Se confirmar, chama o ViewModel para fazer a chamada de API
+                    mainViewModel.finalizePickup(pickup.getId(), statusToSend);
+                })
+                .setNegativeButton("Não", null)
+                .show();
     }
 }
