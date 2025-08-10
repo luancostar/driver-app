@@ -23,11 +23,41 @@ public interface ApiService {
             @Query("endDate") String endDate
     );
 
+    @GET("occurrences/driver")
+    Call<List<Occurrence>> getDriverOccurrences();
+
+    @GET("pickups/{id}")
+    Call<Pickup> getPickupById(@Path("id") String pickupId);
+
     @FormUrlEncoded
     @PATCH("pickups/{id}/driver-finalize")
     Call<Pickup> finalizePickup(
             @Path("id") String pickupId,
             @Field("status") String status
+    );
+
+    @FormUrlEncoded
+    @PATCH("pickups/{id}/driver-finalize")
+    Call<Pickup> finalizePickupBasic(
+            @Path("id") String pickupId,
+            @Field("status") String status,
+            @Field("observationDriver") String observationDriver,
+            @Field("occurrenceId") String occurrenceId,
+            @Field("driverAttachmentUrl") String driverAttachmentUrl,
+            @Field("driverId") String driverId
+    );
+
+    @FormUrlEncoded
+    @PATCH("pickups/{id}/driver-finalize")
+    Call<Pickup> finalizePickupWithDetails(
+            @Path("id") String pickupId,
+            @Field("status") String status,
+            @Field("observationDriver") String observationDriver,
+            @Field("occurrenceId") String occurrenceId,
+            @Field("driverAttachmentUrl") String driverAttachmentUrl,
+            @Field("driverId") String driverId,
+            @Field("vehicleId") String vehicleId,
+            @Field("pickupRouteId") String pickupRouteId
     );
 
 }

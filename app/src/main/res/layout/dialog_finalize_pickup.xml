@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Título -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Finalizar Coleta"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- ID da Coleta -->
+    <TextView
+        android:id="@+id/textViewPickupIdDialog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🆔 ID: #12345"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Label Ocorrência -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ocorrência"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Spinner de Ocorrência -->
+    <Spinner
+        android:id="@+id/spinnerOccurrence"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/spinner_background"
+        android:padding="12dp" />
+
+    <!-- Label Observação -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Observação"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Campo de Observação -->
+    <EditText
+        android:id="@+id/editTextObservation"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:hint="Detalhes sobre a finalização da coleta..."
+        android:gravity="top|start"
+        android:inputType="textMultiLine"
+        android:maxLines="5"
+        android:padding="12dp"
+        android:background="@drawable/edittext_background"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Seção de Foto -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Foto (Opcional)"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Botão da Câmera e Preview da Foto -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="24dp">
+
+        <Button
+            android:id="@+id/buttonCamera"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📷 Tirar Foto"
+            android:textColor="#FFFFFF"
+            android:background="#2196F3"
+            android:minWidth="120dp"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/textViewPhotoStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Nenhuma foto selecionada"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:gravity="center_vertical" />
+
+    </LinearLayout>
+
+    <!-- Botões -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <!-- Botão Cancelar -->
+        <Button
+            android:id="@+id/buttonCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancelar"
+            android:textColor="#666666"
+            android:background="@android:color/transparent"
+            android:layout_marginEnd="16dp"
+            android:minWidth="100dp" />
+
+        <!-- Botão Finalizar -->
+        <Button
+            android:id="@+id/buttonFinalize"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Finalizar Coleta"
+            android:textColor="#FFFFFF"
+            android:background="#4CAF50"
+            android:minWidth="140dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -9,6 +9,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton; // Importe
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupViewHolder> {
 
@@ -50,7 +53,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
     }
 
     class PickupViewHolder extends RecyclerView.ViewHolder {
-        private TextView companyName, contactName, phone, fullAddress;
+        private TextView companyName, contactName, phone, address, scheduledDate, pickupId;
         private MaterialButton buttonCollected, buttonNotCollected;
 
         public PickupViewHolder(@NonNull View itemView) {
@@ -58,27 +61,86 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
             companyName = itemView.findViewById(R.id.textViewCompanyName);
             contactName = itemView.findViewById(R.id.textViewContactName);
             phone = itemView.findViewById(R.id.textViewPhone);
-            fullAddress = itemView.findViewById(R.id.textViewFullAddress);
+            address = itemView.findViewById(R.id.textViewFullAddress);
+            pickupId = itemView.findViewById(R.id.textViewPickupId);
+            scheduledDate = itemView.findViewById(R.id.textViewScheduledDate);
             buttonCollected = itemView.findViewById(R.id.buttonCollected);
             buttonNotCollected = itemView.findViewById(R.id.buttonNotCollected);
         }
 
         public void bind(final Pickup pickup, final OnPickupActionClickListener listener) {
+            // Exibir referenceId da coleta
+            if (pickup.getReferenceId() != null && !pickup.getReferenceId().isEmpty()) {
+                pickupId.setText("🆔 ID: #" + pickup.getReferenceId());
+            } else {
+                pickupId.setText("🆔 ID: Não informado");
+            }
+
             if (pickup.getClient() != null) {
                 companyName.setText(pickup.getClient().getCompanyName());
                 phone.setText("Telefone: " + pickup.getClient().getPhone());
             }
 
+            if (pickup.getClientAddress() != null && pickup.getClientAddress().getContactName() != null) {
+                contactName.setText("Contato: " + pickup.getClientAddress().getContactName());
+            } else {
+                contactName.setText("Contato: Não informado");
+            }
+
             if (pickup.getClientAddress() != null) {
-                ClientAddress address = pickup.getClientAddress();
-                contactName.setText("Contato: " + address.getContactName());
-                String fullAddressText = String.format("%s, %s", address.getAddress(), address.getAddressNumber());
-                this.fullAddress.setText(fullAddressText);
+                ClientAddress clientAddress = pickup.getClientAddress();
+                StringBuilder fullAddressText = new StringBuilder();
+                
+                if (clientAddress.getAddress() != null) {
+                    fullAddressText.append(clientAddress.getAddress());
+                }
+                
+                if (clientAddress.getAddressNumber() != null) {
+                    if (fullAddressText.length() > 0) fullAddressText.append(", ");
+                    fullAddressText.append(clientAddress.getAddressNumber());
+                }
+                
+                if (clientAddress.getNeighborhood() != null && clientAddress.getNeighborhood().getName() != null) {
+                    if (fullAddressText.length() > 0) fullAddressText.append(" - ");
+                    fullAddressText.append(clientAddress.getNeighborhood().getName());
+                }
+                
+                if (clientAddress.getCity() != null && clientAddress.getCity().getName() != null) {
+                    if (fullAddressText.length() > 0) fullAddressText.append(", ");
+                    fullAddressText.append(clientAddress.getCity().getName());
+                }
+                
+                address.setText(fullAddressText.toString());
+            }
+
+            // Configura a data de agendamento
+            if (pickup.getScheduledDate() != null && !pickup.getScheduledDate().trim().isEmpty()) {
+                String formattedDate = formatScheduledDate(pickup.getScheduledDate());
+                scheduledDate.setText("📅 Agendado para: " + formattedDate);
+                scheduledDate.setVisibility(View.VISIBLE);
+            } else {
+                scheduledDate.setText("📅 Agendado para: Hoje");
+                scheduledDate.setVisibility(View.VISIBLE);
             }
 
             // Configura os cliques dos botões para chamar o listener
             buttonCollected.setOnClickListener(v -> listener.onCollectedClick(pickup));
             buttonNotCollected.setOnClickListener(v -> listener.onNotCollectedClick(pickup));
+        }
+
+        // Método auxiliar para formatar a data de agendamento
+        private String formatScheduledDate(String scheduledDate) {
+            try {
+                // Extrai apenas a parte da data (ignora horário se houver)
+                String dateOnly = scheduledDate.substring(0, Math.min(scheduledDate.length(), 10));
+                
+                // Converte de yyyy-MM-dd para dd/MM/yyyy
+                LocalDate date = LocalDate.parse(dateOnly, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault()));
+            } catch (Exception e) {
+                // Em caso de erro, retorna a data original
+                return scheduledDate;
+            }
         }
     }
 }

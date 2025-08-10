@@ -1,10 +1,15 @@
 package com.example.zylogi_motoristas;
 
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -28,6 +33,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private CircularProgressIndicator progressIndicator;
     private TextView textViewProgressPercentage;
     private TextView textViewProgressSummary;
+    
+    private ActivityResultLauncher<Intent> cameraLauncher;
+    private FinalizePickupDialog currentDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +44,7 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
 
         setupViews();
         setupCarousel();
+        setupCameraLauncher();
 
         mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
@@ -60,6 +69,21 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
         carouselAdapter = new PickupAdapter(this);
         carouselRecyclerView.setAdapter(carouselAdapter);
         new LinearSnapHelper().attachToRecyclerView(carouselRecyclerView);
+    }
+
+    private void setupCameraLauncher() {
+        cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Bundle extras = result.getData().getExtras();
+                    Bitmap imageBitmap = (Bitmap) extras.get("data");
+                    if (currentDialog != null) {
+                        currentDialog.onPhotoTaken(imageBitmap);
+                    }
+                }
+            }
+        );
     }
 
     private void setupListeners() {
@@ -105,7 +129,8 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     // 3. Implementação dos métodos obrigatórios do listener
     @Override
     public void onCollectedClick(Pickup pickup) {
-        showConfirmationDialog(pickup, "COLETADO", "COMPLETED");
+        // Abre o modal de finalização para coletas coletadas
+        showFinalizePickupDialog(pickup);
     }
 
     @Override
@@ -113,7 +138,25 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
         showConfirmationDialog(pickup, "NÃO COLETADO", "NOT_COMPLETED");
     }
 
-    // 4. Método que cria e exibe o diálogo de confirmação
+    // 4. Método que abre o modal de finalização com ocorrência e observação
+    private void showFinalizePickupDialog(final Pickup pickup) {
+        FinalizePickupDialog dialog = new FinalizePickupDialog(this, pickup, 
+            (occurrence, observation) -> {
+                // Aqui você pode usar a ocorrência e observação
+                // Por enquanto, vamos finalizar como COMPLETED
+                // TODO: Atualizar API para aceitar occurrence e observation
+                mainViewModel.finalizePickup(pickup.getId(), "COMPLETED");
+                
+                // Mostrar informações capturadas (temporário para debug)
+                String message = "Ocorrência: " + occurrence.getName() + 
+                               " (Nº " + occurrence.getOccurrenceNumber() + ")" +
+                               "\nObservação: " + observation;
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            });
+        dialog.show();
+    }
+
+    // 5. Método que cria e exibe o diálogo de confirmação simples (para NÃO COLETADO)
     private void showConfirmationDialog(final Pickup pickup, String actionText, final String statusToSend) {
         new AlertDialog.Builder(this)
                 .setTitle("Confirmar Ação")
@@ -124,5 +167,15 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 })
                 .setNegativeButton("Não", null)
                 .show();
+    }
+
+    public void startCameraForResult(FinalizePickupDialog dialog) {
+        currentDialog = dialog;
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        cameraLauncher.launch(cameraIntent);
+    }
+
+    public MainViewModel getMainViewModel() {
+        return mainViewModel;
     }
 }

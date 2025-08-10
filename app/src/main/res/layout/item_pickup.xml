@@ -42,26 +42,47 @@
             android:text="Rua, Número, Bairro, Cidade - CEP"
             android:layout_marginTop="8dp"/>
 
+        <!-- ID da Coleta -->
+        <TextView
+            android:id="@+id/textViewPickupId"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🆔 ID: #12345"
+            android:textSize="12sp"
+            android:textColor="#666666"
+            android:textStyle="bold"
+            android:layout_marginTop="4dp" />
+
+        <!-- Data de Agendamento -->
+        <TextView
+            android:id="@+id/textViewScheduledDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📅 Agendado para: 25/12/2024"
+            android:textSize="14sp"
+            android:textColor="#2196F3"
+            android:layout_marginTop="8dp"
+            android:drawablePadding="4dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonCollected"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="COLETADO"
-                android:layout_marginEnd="8dp"/>
+                android:text="✅ COLETADO"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#4CAF50"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonNotCollected"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="NÃO COLETADO"
+                android:text="❌ NÃO COLETADO"
                 android:backgroundTint="#D32F2F"/>
 
         </LinearLayout>
