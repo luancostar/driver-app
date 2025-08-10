@@ -12,6 +12,8 @@ public class AuthSessionManager {
 
     private static final String FILE_NAME = "encrypted_session_prefs";
     private static final String KEY_AUTH_TOKEN = "auth_token";
+    private static final String KEY_BIOMETRIC_ENABLED = "biometric_enabled";
+    private static final String KEY_USER_CPF = "user_cpf";
 
     private SharedPreferences sharedPreferences;
 
@@ -43,6 +45,28 @@ public class AuthSessionManager {
     public void clearSession() {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.clear();
+        editor.apply();
+    }
+
+    public void enableBiometric(String userCpf) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(KEY_BIOMETRIC_ENABLED, true);
+        editor.putString(KEY_USER_CPF, userCpf);
+        editor.apply();
+    }
+
+    public boolean isBiometricEnabled() {
+        return sharedPreferences.getBoolean(KEY_BIOMETRIC_ENABLED, false);
+    }
+
+    public String getSavedUserCpf() {
+        return sharedPreferences.getString(KEY_USER_CPF, null);
+    }
+
+    public void disableBiometric() {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(KEY_BIOMETRIC_ENABLED, false);
+        editor.remove(KEY_USER_CPF);
         editor.apply();
     }
 }

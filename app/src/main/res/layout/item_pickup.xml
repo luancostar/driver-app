@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:card_view="http://schemas.android.com/apk/res-auto"
-    android:layout_width="300dp"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
     android:layout_margin="12dp"
     card_view:cardCornerRadius="16dp"
-    card_view:cardElevation="8dp"
-    android:background="@android:color/white">
+    card_view:cardElevation="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -43,21 +42,50 @@
             android:text="Rua, Número, Bairro, Cidade - CEP"
             android:layout_marginTop="8dp"/>
 
+        <!-- ID da Coleta -->
         <TextView
-            android:id="@+id/textViewObservation"
+            android:id="@+id/textViewPickupId"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Observação: Nenhuma"
-            android:layout_marginTop="8dp"
-            android:textStyle="italic"/>
-
-        <TextView
-            android:id="@+id/textViewIsFragile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Frágil: Não"
+            android:text="🆔 ID: #12345"
+            android:textSize="12sp"
+            android:textColor="#666666"
             android:textStyle="bold"
-            android:layout_marginTop="4dp"/>
+            android:layout_marginTop="4dp" />
+
+        <!-- Data de Agendamento -->
+        <TextView
+            android:id="@+id/textViewScheduledDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📅 Agendado para: 25/12/2024"
+            android:textSize="14sp"
+            android:textColor="#2196F3"
+            android:layout_marginTop="8dp"
+            android:drawablePadding="4dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCollected"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="✅ COLETADO"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#4CAF50"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonNotCollected"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="❌ NÃO COLETADO"
+                android:backgroundTint="#D32F2F"/>
+
+        </LinearLayout>
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>
