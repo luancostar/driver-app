@@ -2,6 +2,8 @@ package com.example.zylogi_motoristas;
 
 import android.content.Context;
 import com.example.zylogi_motoristas.BuildConfig;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor; // Importe
 import retrofit2.Retrofit;
@@ -22,10 +24,15 @@ public class RetrofitClient {
                     .addInterceptor(loggingInterceptor) // Adiciona o espião aqui
                     .build();
 
+            // Configura Gson para não incluir campos vazios ou nulos
+            Gson gson = new GsonBuilder()
+                    .setLenient()
+                    .create();
+
             retrofit = new Retrofit.Builder()
                     .baseUrl(BuildConfig.API_BASE_URL)
                     .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
+                    .addConverterFactory(GsonConverterFactory.create(gson))
                     .build();
         }
         return retrofit;

@@ -6,8 +6,7 @@ import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Query;
 import java.util.List;
-import retrofit2.http.Field;
-import retrofit2.http.FormUrlEncoded;
+import java.util.Map;
 import retrofit2.http.PATCH;
 import retrofit2.http.Path;
 
@@ -29,35 +28,11 @@ public interface ApiService {
     @GET("pickups/{id}")
     Call<Pickup> getPickupById(@Path("id") String pickupId);
 
-    @FormUrlEncoded
+    // Método para finalizar coletas - usa Map para enviar apenas campos necessários
     @PATCH("pickups/{id}/driver-finalize")
     Call<Pickup> finalizePickup(
             @Path("id") String pickupId,
-            @Field("status") String status
-    );
-
-    @FormUrlEncoded
-    @PATCH("pickups/{id}/driver-finalize")
-    Call<Pickup> finalizePickupBasic(
-            @Path("id") String pickupId,
-            @Field("status") String status,
-            @Field("observationDriver") String observationDriver,
-            @Field("occurrenceId") String occurrenceId,
-            @Field("driverAttachmentUrl") String driverAttachmentUrl,
-            @Field("driverId") String driverId
-    );
-
-    @FormUrlEncoded
-    @PATCH("pickups/{id}/driver-finalize")
-    Call<Pickup> finalizePickupWithDetails(
-            @Path("id") String pickupId,
-            @Field("status") String status,
-            @Field("observationDriver") String observationDriver,
-            @Field("occurrenceId") String occurrenceId,
-            @Field("driverAttachmentUrl") String driverAttachmentUrl,
-            @Field("driverId") String driverId,
-            @Field("vehicleId") String vehicleId,
-            @Field("pickupRouteId") String pickupRouteId
+            @Body Map<String, Object> updates
     );
 
 }

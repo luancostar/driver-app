@@ -9,8 +9,10 @@ import com.auth0.android.jwt.JWT;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors; // Importe
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -92,7 +94,11 @@ public class MainViewModel extends AndroidViewModel {
     // o que já dispara a nova filtragem e cálculo de progresso.
     public void finalizePickup(String pickupId, String status) {
         _isLoading.setValue(true);
-        apiService.finalizePickup(pickupId, status).enqueue(new Callback<Pickup>() {
+        // Para chamadas simples, enviar apenas o status
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", status);
+        
+        apiService.finalizePickup(pickupId, updates).enqueue(new Callback<Pickup>() {
             @Override
             public void onResponse(Call<Pickup> call, Response<Pickup> response) {
                 if (response.isSuccessful()) {
@@ -111,113 +117,56 @@ public class MainViewModel extends AndroidViewModel {
         });
     }
 
-    // Novo método para finalização com detalhes completos
+    // Método para finalização com detalhes do motorista
     public void finalizePickupWithDetails(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl) {
         _isLoading.setValue(true);
         
-        // Primeiro, buscar os detalhes completos da coleta para obter pickupRouteId e vehicleId
-        android.util.Log.d("MainViewModel", "Buscando detalhes completos da coleta: " + pickup.getId());
-        
-        apiService.getPickupById(pickup.getId()).enqueue(new Callback<Pickup>() {
-            @Override
-            public void onResponse(Call<Pickup> call, Response<Pickup> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    Pickup fullPickup = response.body();
-                    android.util.Log.d("MainViewModel", "Detalhes da coleta obtidos com sucesso");
-                    
-                    // Prosseguir com a finalização usando os dados completos
-                    proceedWithFinalization(fullPickup, observationDriver, occurrenceId, driverAttachmentUrl);
-                } else {
-                    android.util.Log.w("MainViewModel", "Falha ao obter detalhes da coleta, usando dados originais");
-                    // Se falhar, usar os dados originais
-                    proceedWithFinalization(pickup, observationDriver, occurrenceId, driverAttachmentUrl);
-                }
-            }
-            
-            @Override
-            public void onFailure(Call<Pickup> call, Throwable t) {
-                android.util.Log.w("MainViewModel", "Erro ao buscar detalhes da coleta: " + t.getMessage());
-                // Se falhar, usar os dados originais
-                proceedWithFinalization(pickup, observationDriver, occurrenceId, driverAttachmentUrl);
-            }
-        });
-    }
-    
-    private void proceedWithFinalization(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl) {
-        // Obter driverId do JWT token
-        String token = authSessionManager.getAuthToken();
-        String driverId = null;
-        String vehicleIdFromJWT = null;
-        if (token != null) {
-            JWT jwt = new JWT(token);
-            driverId = jwt.getSubject();
-            
-            // Verificar se existe vehicleId no JWT
-            try {
-                vehicleIdFromJWT = jwt.getClaim("vehicleId").asString();
-                android.util.Log.d("MainViewModel", "Vehicle ID do JWT: " + vehicleIdFromJWT);
-            } catch (Exception e) {
-                android.util.Log.d("MainViewModel", "Vehicle ID não encontrado no JWT");
-            }
-            
-            // Log de todas as claims para debug
-            android.util.Log.d("MainViewModel", "JWT Claims disponíveis: " + jwt.getClaims().keySet());
-        }
-        
-        // Logs de debug para rastrear os valores recebidos
-        android.util.Log.d("MainViewModel", "=== CHAMADA API ===");
+        // Logs de debug
+        android.util.Log.d("MainViewModel", "=== FINALIZANDO COLETA COM DETALHES ===");
         android.util.Log.d("MainViewModel", "Pickup ID: " + pickup.getId());
         android.util.Log.d("MainViewModel", "Status: COMPLETED");
-        android.util.Log.d("MainViewModel", "Observation Driver: '" + observationDriver + "'");
-        android.util.Log.d("MainViewModel", "Occurrence ID: '" + occurrenceId + "'");
-        android.util.Log.d("MainViewModel", "Driver Attachment URL: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Vazio"));
-        android.util.Log.d("MainViewModel", "Driver ID: " + driverId);
-        android.util.Log.d("MainViewModel", "Vehicle ID (do Pickup): " + pickup.getVehicleId());
-        android.util.Log.d("MainViewModel", "Vehicle ID (do JWT): " + vehicleIdFromJWT);
+        android.util.Log.d("MainViewModel", "Observação: " + observationDriver);
+        android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
+        android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
         
-        // Decidir qual método usar baseado na disponibilidade dos campos opcionais
-        String vehicleId = pickup.getVehicleId();
-        if (vehicleId == null || vehicleId.trim().isEmpty()) {
-            vehicleId = vehicleIdFromJWT;
+        // Criar Map com todos os dados do motorista
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "COMPLETED");
+        if (observationDriver != null && !observationDriver.trim().isEmpty()) {
+            updates.put("observationDriver", observationDriver);
+        }
+        if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
+            updates.put("occurrenceId", occurrenceId);
+        }
+        if (driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty()) {
+            updates.put("driverAttachmentUrl", driverAttachmentUrl);
         }
         
-        String pickupRouteId = pickup.getPickupRouteId();
-        
-        android.util.Log.d("MainViewModel", "Vehicle ID (final): " + vehicleId);
-        android.util.Log.d("MainViewModel", "Pickup Route ID: " + pickupRouteId);
-        
-        boolean hasVehicleId = vehicleId != null && !vehicleId.trim().isEmpty();
-        boolean hasPickupRouteId = pickupRouteId != null && !pickupRouteId.trim().isEmpty();
-        
-        Call<Pickup> call;
-        if (hasVehicleId || hasPickupRouteId) {
-            // Se temos pelo menos um dos campos opcionais, usar o método completo
-            android.util.Log.d("MainViewModel", "Usando método completo (com campos opcionais)");
-            call = apiService.finalizePickupWithDetails(pickup.getId(), "COMPLETED", observationDriver, occurrenceId, driverAttachmentUrl, driverId, vehicleId, pickupRouteId);
-        } else {
-            // Se não temos nenhum campo opcional, usar o método básico para evitar enviar nulls
-            android.util.Log.d("MainViewModel", "Usando método básico (sem campos opcionais para evitar nulls)");
-            call = apiService.finalizePickupBasic(pickup.getId(), "COMPLETED", observationDriver, occurrenceId, driverAttachmentUrl, driverId);
-        }
-        
-        call.enqueue(new Callback<Pickup>() {
-            @Override
-            public void onResponse(Call<Pickup> call, Response<Pickup> response) {
-                if (response.isSuccessful()) {
-                    _updateResult.setValue("Coleta finalizada com sucesso!");
-                    fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
-                } else {
-                    _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
-                    _isLoading.setValue(false);
-                }
-            }
-            @Override
-            public void onFailure(Call<Pickup> call, Throwable t) {
-                _updateResult.setValue("Erro de conexão: " + t.getMessage());
-                _isLoading.setValue(false);
-            }
-        });
+        // Enviar apenas os campos que têm valores
+        apiService.finalizePickup(pickup.getId(), updates)
+                .enqueue(new Callback<Pickup>() {
+                    @Override
+                    public void onResponse(Call<Pickup> call, Response<Pickup> response) {
+                        if (response.isSuccessful()) {
+                            android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso - apenas status enviado");
+                            _updateResult.setValue("Coleta finalizada com sucesso!");
+                            fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
+                        } else {
+                            android.util.Log.e("MainViewModel", "Falha ao finalizar coleta: " + response.code());
+                            _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
+                            _isLoading.setValue(false);
+                        }
+                    }
+                    
+                    @Override
+                    public void onFailure(Call<Pickup> call, Throwable t) {
+                        android.util.Log.e("MainViewModel", "Erro de conexão: " + t.getMessage());
+                        _updateResult.setValue("Erro de conexão: " + t.getMessage());
+                        _isLoading.setValue(false);
+                    }
+                });
     }
+
 
     // O cálculo de progresso agora considera "COMPLETED" e "NOT_COMPLETED" como finalizadas
     private void calculateProgress(List<Pickup> allPickups) {
