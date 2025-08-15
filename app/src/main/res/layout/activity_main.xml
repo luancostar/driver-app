@@ -7,20 +7,93 @@
     android:background="#F0F4F8"
     tools:context=".MainActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- Barra superior personalizada -->
+    <LinearLayout
+        android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="#3498DB"
-        app:title="Minhas Coletas"
-        app:titleTextColor="@android:color/white"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Seção esquerda: Bem-vindo + Nome do motorista -->
+        <TextView
+            android:id="@+id/textWelcome"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Bem-vindo, Motorista"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="start" />
+
+        <!-- Seção central: Data, Hora e Localização -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/textDateTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="01/01/2024 12:00:00"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:gravity="center" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/textLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📍 Carregando..."
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/textTemperature"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌡️ --°C"
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Seção direita: Botão de logout -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonLogout"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Sair"
+            android:textColor="#3498DB"
+            android:textSize="12sp"
+            app:backgroundTint="@android:color/white"
+            app:cornerRadius="18dp"
+            android:minWidth="60dp"
+            style="@style/Widget.Material3.Button.UnelevatedButton" />
+
+    </LinearLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
         app:layout_constraintBottom_toTopOf="@id/progressIndicator"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">

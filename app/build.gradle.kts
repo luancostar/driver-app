@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.biometric)
     implementation(libs.swiperefreshlayout)
+    implementation("com.google.android.gms:play-services-location:21.0.1")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
     // ADICIONADO: Dependências para a arquitetura MVVM (ViewModel e LiveData)

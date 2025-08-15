@@ -1,12 +1,34 @@
 package com.example.zylogi_motoristas;
 
+import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.material.button.MaterialButton;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import android.location.Address;
+import android.location.Geocoder;
+
+import com.auth0.android.jwt.JWT;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -34,23 +56,46 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private TextView textViewProgressPercentage;
     private TextView textViewProgressSummary;
     
+    // Elementos da barra superior
+    private TextView textWelcome;
+    private TextView textDateTime;
+    private TextView textLocation;
+    private TextView textTemperature;
+    private MaterialButton buttonLogout;
+    
+    // Gerenciadores
+    private AuthSessionManager authSessionManager;
+    private FusedLocationProviderClient fusedLocationClient;
+    private Handler handler;
+    private Runnable timeUpdateRunnable;
+    
     private ActivityResultLauncher<Intent> cameraLauncher;
     private FinalizePickupDialog currentDialog;
     private FinalizePickupNotCompletedDialog currentNotCompletedDialog;
+    
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Inicializar gerenciadores
+        authSessionManager = new AuthSessionManager(this);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        handler = new Handler(Looper.getMainLooper());
+
         setupViews();
         setupCarousel();
         setupCameraLauncher();
+        setupTopBar();
 
         mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
         setupListeners();
         observeViewModel();
+        startTimeUpdates();
+        updateLocation();
 
         mainViewModel.fetchPickups();
     }
@@ -62,6 +107,13 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
         progressIndicator = findViewById(R.id.progressIndicator);
         textViewProgressPercentage = findViewById(R.id.textViewProgressPercentage);
         textViewProgressSummary = findViewById(R.id.textViewProgressSummary);
+        
+        // Elementos da barra superior
+        textWelcome = findViewById(R.id.textWelcome);
+        textDateTime = findViewById(R.id.textDateTime);
+        textLocation = findViewById(R.id.textLocation);
+        textTemperature = findViewById(R.id.textTemperature);
+        buttonLogout = findViewById(R.id.buttonLogout);
     }
 
     private void setupCarousel() {
@@ -93,6 +145,149 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private void setupListeners() {
         fabSync.setOnClickListener(v -> mainViewModel.fetchPickups());
         swipeRefreshLayout.setOnRefreshListener(() -> mainViewModel.fetchPickups());
+        buttonLogout.setOnClickListener(v -> performLogout());
+    }
+    
+    private void setupTopBar() {
+        // Configurar nome do motorista
+        updateDriverName();
+        
+        // Configurar data e hora inicial
+        updateDateTime();
+        
+        // Configurar localização inicial
+        textLocation.setText("📍 Carregando...");
+        textTemperature.setText("🌡️ --°C");
+    }
+    
+    private void updateDriverName() {
+        String token = authSessionManager.getAuthToken();
+        if (token != null) {
+            try {
+                JWT jwt = new JWT(token);
+                String driverName = jwt.getClaim("name").asString();
+                if (driverName != null && !driverName.isEmpty()) {
+                    textWelcome.setText("Bem-vindo, " + driverName);
+                } else {
+                    textWelcome.setText("Bem-vindo, Motorista");
+                }
+            } catch (Exception e) {
+                textWelcome.setText("Bem-vindo, Motorista");
+            }
+        } else {
+            textWelcome.setText("Bem-vindo, Motorista");
+        }
+    }
+    
+    private void startTimeUpdates() {
+        timeUpdateRunnable = new Runnable() {
+            @Override
+            public void run() {
+                updateDateTime();
+                handler.postDelayed(this, 1000); // Atualizar a cada segundo
+            }
+        };
+        handler.post(timeUpdateRunnable);
+    }
+    
+    private void updateDateTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        // Corrigir fuso horário subtraindo 3 horas
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.HOUR_OF_DAY, -3);
+        String currentDateTime = sdf.format(calendar.getTime());
+        textDateTime.setText(currentDateTime);
+    }
+    
+    private void updateLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) 
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 
+                LOCATION_PERMISSION_REQUEST_CODE);
+            return;
+        }
+        
+        fusedLocationClient.getLastLocation()
+            .addOnSuccessListener(this, location -> {
+                if (location != null) {
+                    // Usar geocoding reverso para obter o nome do bairro
+                    getNeighborhoodName(location.getLatitude(), location.getLongitude());
+                    
+                    // Simular temperatura (em um app real, você usaria uma API de clima)
+                    int temperature = 20 + (int)(Math.random() * 15); // Temperatura entre 20-35°C
+                    textTemperature.setText(String.format(Locale.getDefault(), "🌡️ %d°C", temperature));
+                } else {
+                    textLocation.setText("📍 Localização indisponível");
+                }
+            })
+            .addOnFailureListener(e -> {
+                textLocation.setText("📍 Erro na localização");
+            });
+    }
+    
+    private void getNeighborhoodName(double latitude, double longitude) {
+        try {
+            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+            
+            if (addresses != null && !addresses.isEmpty()) {
+                Address address = addresses.get(0);
+                String neighborhood = address.getSubLocality(); // Bairro
+                
+                if (neighborhood != null && !neighborhood.isEmpty()) {
+                    textLocation.setText("📍 " + neighborhood);
+                } else {
+                    // Se não conseguir o bairro, tenta a cidade
+                    String city = address.getLocality();
+                    if (city != null && !city.isEmpty()) {
+                        textLocation.setText("📍 " + city);
+                    } else {
+                        textLocation.setText("📍 Localização encontrada");
+                    }
+                }
+            } else {
+                textLocation.setText("📍 Endereço não encontrado");
+            }
+        } catch (Exception e) {
+            textLocation.setText("📍 Erro ao obter endereço");
+        }
+    }
+    
+    private void performLogout() {
+        // Limpar sessão
+        authSessionManager.clearSession();
+        
+        // Parar atualizações de tempo
+        if (timeUpdateRunnable != null) {
+            handler.removeCallbacks(timeUpdateRunnable);
+        }
+        
+        // Navegar para tela de login
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+    
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                updateLocation();
+            } else {
+                textLocation.setText("📍 Permissão negada");
+            }
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (timeUpdateRunnable != null) {
+            handler.removeCallbacks(timeUpdateRunnable);
+        }
     }
 
     private void observeViewModel() {
