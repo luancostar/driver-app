@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     
     private ActivityResultLauncher<Intent> cameraLauncher;
     private FinalizePickupDialog currentDialog;
+    private FinalizePickupNotCompletedDialog currentNotCompletedDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +81,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                     Bitmap imageBitmap = (Bitmap) extras.get("data");
                     if (currentDialog != null) {
                         currentDialog.onPhotoTaken(imageBitmap);
+                    }
+                    if (currentNotCompletedDialog != null) {
+                        currentNotCompletedDialog.onPhotoTaken(imageBitmap);
                     }
                 }
             }
@@ -135,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
 
     @Override
     public void onNotCollectedClick(Pickup pickup) {
-        showConfirmationDialog(pickup, "NÃO COLETADO", "NOT_COMPLETED");
+        showFinalizePickupNotCompletedDialog(pickup);
     }
 
     // 4. Método que abre o modal de finalização com ocorrência e observação
@@ -149,6 +153,20 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 
                 // Mostrar informações capturadas (temporário para debug)
                 String message = "Ocorrência: " + occurrence.getName() + 
+                               " (Nº " + occurrence.getOccurrenceNumber() + ")" +
+                               "\nObservação: " + observation;
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            });
+        dialog.show();
+    }
+
+    // Método que abre o modal de finalização para NÃO COLETADO com ocorrência e observação
+    private void showFinalizePickupNotCompletedDialog(final Pickup pickup) {
+        FinalizePickupNotCompletedDialog dialog = new FinalizePickupNotCompletedDialog(this, pickup, 
+            (occurrence, observation) -> {
+                // Mostrar informações capturadas (temporário para debug)
+                String message = "Coleta marcada como NÃO COLETADO\n" +
+                               "Ocorrência: " + occurrence.getName() + 
                                " (Nº " + occurrence.getOccurrenceNumber() + ")" +
                                "\nObservação: " + observation;
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
@@ -171,6 +189,14 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
 
     public void startCameraForResult(FinalizePickupDialog dialog) {
         currentDialog = dialog;
+        currentNotCompletedDialog = null;
+        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        cameraLauncher.launch(cameraIntent);
+    }
+
+    public void startCameraForResult(FinalizePickupNotCompletedDialog dialog) {
+        currentNotCompletedDialog = dialog;
+        currentDialog = null;
         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         cameraLauncher.launch(cameraIntent);
     }

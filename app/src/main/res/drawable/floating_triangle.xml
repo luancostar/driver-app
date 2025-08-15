@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Triangle shape using vector drawable -->
+    <item>
+        <vector
+            android:width="50dp"
+            android:height="50dp"
+            android:viewportWidth="50"
+            android:viewportHeight="50">
+            
+            <path
+                android:pathData="M25,5 L45,40 L5,40 Z"
+                android:fillColor="#30FFFFFF"
+                android:strokeColor="#20FFFFFF"
+                android:strokeWidth="1" />
+                
+        </vector>
+    </item>
+    
+</layer-list>

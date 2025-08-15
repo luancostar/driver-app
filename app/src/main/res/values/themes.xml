@@ -6,4 +6,11 @@
     </style>
 
     <style name="Theme.ZylogiMotoristas" parent="Base.Theme.ZylogiMotoristas" />
+    
+    <!-- Tema personalizado para a SplashActivity -->
+    <style name="Theme.ZylogiMotoristas.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/zylogi_brand_blue</item>
+        <item name="android:statusBarColor">@color/zylogi_brand_blue</item>
+        <item name="android:navigationBarColor">@color/zylogi_brand_blue</item>
+    </style>
 </resources>

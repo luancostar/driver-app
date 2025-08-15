@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Base gradient background -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="800dp"
+                android:centerX="0.3"
+                android:centerY="0.2"
+                android:startColor="#1565C0"
+                android:centerColor="#1976D2"
+                android:endColor="#0D47A1" />
+        </shape>
+    </item>
+    
+    <!-- Floating circles overlay -->
+    <item android:top="100dp" android:left="50dp">
+        <shape android:shape="oval">
+            <size android:width="120dp" android:height="120dp" />
+            <solid android:color="#20FFFFFF" />
+        </shape>
+    </item>
+    
+    <item android:top="300dp" android:right="80dp">
+        <shape android:shape="oval">
+            <size android:width="80dp" android:height="80dp" />
+            <solid android:color="#15FFFFFF" />
+        </shape>
+    </item>
+    
+    <item android:bottom="200dp" android:left="100dp">
+        <shape android:shape="oval">
+            <size android:width="60dp" android:height="60dp" />
+            <solid android:color="#25FFFFFF" />
+        </shape>
+    </item>
+    
+    <!-- Geometric shapes for modern look -->
+    <item android:top="150dp" android:right="120dp">
+        <rotate android:fromDegrees="45">
+            <shape android:shape="rectangle">
+                <size android:width="40dp" android:height="40dp" />
+                <solid android:color="#30FFFFFF" />
+                <corners android:radius="8dp" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <item android:bottom="300dp" android:right="50dp">
+        <rotate android:fromDegrees="30">
+            <shape android:shape="rectangle">
+                <size android:width="30dp" android:height="30dp" />
+                <solid android:color="#20FFFFFF" />
+                <corners android:radius="6dp" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Subtle overlay gradient for depth -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#10000000"
+                android:centerColor="#00000000"
+                android:endColor="#15FFFFFF" />
+        </shape>
+    </item>
+    
+</layer-list>

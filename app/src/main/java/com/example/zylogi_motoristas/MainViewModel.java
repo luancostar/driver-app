@@ -7,6 +7,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import com.auth0.android.jwt.JWT;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -98,6 +99,10 @@ public class MainViewModel extends AndroidViewModel {
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", status);
         
+        // Adicionar data e hora de finalização (horário local do Brasil)
+        String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+        updates.put("completionDate", completionDate);
+        
         apiService.finalizePickup(pickupId, updates).enqueue(new Callback<Pickup>() {
             @Override
             public void onResponse(Call<Pickup> call, Response<Pickup> response) {
@@ -132,6 +137,11 @@ public class MainViewModel extends AndroidViewModel {
         // Criar Map com todos os dados do motorista
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", "COMPLETED");
+        
+        // Adicionar data e hora de finalização (horário local do Brasil)
+         String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+         updates.put("completionDate", completionDate);
+        
         if (observationDriver != null && !observationDriver.trim().isEmpty()) {
             updates.put("observationDriver", observationDriver);
         }
@@ -154,6 +164,60 @@ public class MainViewModel extends AndroidViewModel {
                         } else {
                             android.util.Log.e("MainViewModel", "Falha ao finalizar coleta: " + response.code());
                             _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
+                            _isLoading.setValue(false);
+                        }
+                    }
+                    
+                    @Override
+                    public void onFailure(Call<Pickup> call, Throwable t) {
+                        android.util.Log.e("MainViewModel", "Erro de conexão: " + t.getMessage());
+                        _updateResult.setValue("Erro de conexão: " + t.getMessage());
+                        _isLoading.setValue(false);
+                    }
+                });
+    }
+
+    public void finalizePickupWithDetailsNotCompleted(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl) {
+        _isLoading.setValue(true);
+        
+        // Logs de debug
+        android.util.Log.d("MainViewModel", "=== FINALIZANDO COLETA COMO NÃO COLETADO COM DETALHES ===");
+        android.util.Log.d("MainViewModel", "Pickup ID: " + pickup.getId());
+        android.util.Log.d("MainViewModel", "Status: NOT_COMPLETED");
+        android.util.Log.d("MainViewModel", "Observação: " + observationDriver);
+        android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
+        android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
+        
+        // Criar Map com todos os dados do motorista
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "NOT_COMPLETED");
+        
+        // Adicionar data e hora de finalização (horário local do Brasil)
+         String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+         updates.put("completionDate", completionDate);
+        
+        if (observationDriver != null && !observationDriver.trim().isEmpty()) {
+            updates.put("observationDriver", observationDriver);
+        }
+        if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
+            updates.put("occurrenceId", occurrenceId);
+        }
+        if (driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty()) {
+            updates.put("driverAttachmentUrl", driverAttachmentUrl);
+        }
+        
+        // Enviar apenas os campos que têm valores
+        apiService.finalizePickup(pickup.getId(), updates)
+                .enqueue(new Callback<Pickup>() {
+                    @Override
+                    public void onResponse(Call<Pickup> call, Response<Pickup> response) {
+                        if (response.isSuccessful()) {
+                            android.util.Log.d("MainViewModel", "Coleta marcada como não coletada com sucesso");
+                            _updateResult.setValue("Coleta marcada como não coletada com sucesso!");
+                            fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
+                        } else {
+                            android.util.Log.e("MainViewModel", "Falha ao marcar coleta como não coletada: " + response.code());
+                            _updateResult.setValue("Falha ao marcar a coleta como não coletada: " + response.code());
                             _isLoading.setValue(false);
                         }
                     }

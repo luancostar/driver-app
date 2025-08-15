@@ -34,5 +34,4 @@ public interface ApiService {
             @Path("id") String pickupId,
             @Body Map<String, Object> updates
     );
-
 }
