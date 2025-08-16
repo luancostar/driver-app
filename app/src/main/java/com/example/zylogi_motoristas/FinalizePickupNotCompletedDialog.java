@@ -92,6 +92,7 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         buttonCancel.setOnClickListener(v -> dismiss());
         
         buttonCamera.setOnClickListener(v -> {
+            Log.d("FinalizePickupNotCompletedDialog", "Botão da câmera clicado!");
             openCamera();
         });
         
@@ -212,20 +213,49 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     }
 
     private void openCamera() {
-        if (ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.CAMERA) 
-                == PackageManager.PERMISSION_GRANTED) {
-            
-            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            if (cameraIntent.resolveActivity(getContext().getPackageManager()) != null) {
-                // Usar o launcher da MainActivity
-                if (getContext() instanceof MainActivity) {
-                    ((MainActivity) getContext()).startCameraForResult(this);
-                }
-            } else {
-                Toast.makeText(getContext(), "Câmera não disponível", Toast.LENGTH_SHORT).show();
-            }
+        Log.d("FinalizePickupNotCompletedDialog", "openCamera() chamado");
+        
+        // Verificar permissão da câmera
+        int permissionStatus = ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.CAMERA);
+        Log.d("FinalizePickupNotCompletedDialog", "Status da permissão da câmera: " + permissionStatus + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        
+        if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+            Log.d("FinalizePickupNotCompletedDialog", "Permissão já concedida, abrindo câmera diretamente");
+            openCameraAfterPermission();
         } else {
-            Toast.makeText(getContext(), "Permissão de câmera necessária", Toast.LENGTH_SHORT).show();
+            Log.d("FinalizePickupNotCompletedDialog", "Permissão da câmera negada, solicitando permissão");
+            // Solicitar permissão através da MainActivity
+            if (getContext() instanceof MainActivity) {
+                Log.d("FinalizePickupNotCompletedDialog", "Context é MainActivity, chamando requestCameraPermission");
+                ((MainActivity) getContext()).requestCameraPermission();
+            } else {
+                Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + getContext().getClass().getSimpleName());
+                Toast.makeText(getContext(), "Permissão de câmera necessária", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
+    public void openCameraAfterPermission() {
+        Log.d("FinalizePickupNotCompletedDialog", "openCameraAfterPermission() chamado");
+        Log.d("FinalizePickupNotCompletedDialog", "Context class: " + getContext().getClass().getName());
+        
+        Context context = getContext();
+        if (context instanceof MainActivity) {
+            Log.d("FinalizePickupNotCompletedDialog", "Chamando startCameraForResult na MainActivity");
+            ((MainActivity) context).startCameraForResult(this);
+        } else {
+            Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + context.getClass().getName());
+            // Tentar encontrar a MainActivity através do contexto
+            if (context instanceof android.view.ContextThemeWrapper) {
+                Context baseContext = ((android.view.ContextThemeWrapper) context).getBaseContext();
+                Log.d("FinalizePickupNotCompletedDialog", "BaseContext class: " + baseContext.getClass().getName());
+                if (baseContext instanceof MainActivity) {
+                    Log.d("FinalizePickupNotCompletedDialog", "Usando BaseContext como MainActivity");
+                    ((MainActivity) baseContext).startCameraForResult(this);
+                    return;
+                }
+            }
+            Toast.makeText(getContext(), "Erro ao abrir câmera", Toast.LENGTH_SHORT).show();
         }
     }
 

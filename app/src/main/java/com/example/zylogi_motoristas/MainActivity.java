@@ -10,9 +10,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -74,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private FinalizePickupNotCompletedDialog currentNotCompletedDialog;
     
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +103,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             updateLocation();
 
             mainViewModel.fetchPickups();
+            
+            // Verificar e solicitar permissão da câmera ao iniciar o app
+            checkCameraPermission();
             
         } catch (Exception e) {
             android.util.Log.e("MainActivity", "Erro durante inicialização da MainActivity", e);
@@ -142,21 +148,36 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     }
 
     private void setupCameraLauncher() {
+        Log.d("MainActivity", "Configurando cameraLauncher");
         cameraLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
+                Log.d("MainActivity", "Resultado da câmera: " + result.getResultCode());
+                
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                     Bundle extras = result.getData().getExtras();
-                    Bitmap imageBitmap = (Bitmap) extras.get("data");
-                    if (currentDialog != null) {
-                        currentDialog.onPhotoTaken(imageBitmap);
+                    if (extras != null) {
+                        Bitmap imageBitmap = (Bitmap) extras.get("data");
+                        if (imageBitmap != null) {
+                            Log.d("MainActivity", "Foto capturada com sucesso");
+                            deliverPhotoToDialog(imageBitmap);
+                        }
                     }
-                    if (currentNotCompletedDialog != null) {
-                        currentNotCompletedDialog.onPhotoTaken(imageBitmap);
-                    }
+                } else {
+                    Log.d("MainActivity", "Câmera cancelada ou erro");
                 }
             }
         );
+    }
+    
+    private void deliverPhotoToDialog(Bitmap bitmap) {
+        if (currentDialog != null) {
+            currentDialog.onPhotoTaken(bitmap);
+        } else if (currentNotCompletedDialog != null) {
+            currentNotCompletedDialog.onPhotoTaken(bitmap);
+        } else {
+            Log.w("MainActivity", "Nenhum diálogo ativo para receber a foto");
+        }
     }
 
     private void setupListeners() {
@@ -296,6 +317,19 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             } else {
                 textLocation.setText("📍 Permissão negada");
             }
+        } else if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Permissão da câmera concedida pelo usuário");
+                // Tentar abrir a câmera novamente
+                if (currentDialog != null) {
+                    currentDialog.openCameraAfterPermission();
+                } else if (currentNotCompletedDialog != null) {
+                    currentNotCompletedDialog.openCameraAfterPermission();
+                }
+            } else {
+                Log.d("MainActivity", "Permissão da câmera negada pelo usuário");
+                Toast.makeText(this, "Permissão da câmera é necessária para tirar fotos", Toast.LENGTH_LONG).show();
+            }
         }
     }
     
@@ -400,17 +434,89 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     }
 
     public void startCameraForResult(FinalizePickupDialog dialog) {
+        Log.d("MainActivity", "Abrindo câmera para FinalizePickupDialog");
         currentDialog = dialog;
-        currentNotCompletedDialog = null;
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        cameraLauncher.launch(cameraIntent);
+        launchCamera();
     }
 
     public void startCameraForResult(FinalizePickupNotCompletedDialog dialog) {
+        Log.d("MainActivity", "Abrindo câmera para FinalizePickupNotCompletedDialog");
         currentNotCompletedDialog = dialog;
-        currentDialog = null;
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        cameraLauncher.launch(cameraIntent);
+        launchCamera();
+    }
+    
+    private void launchCamera() {
+        try {
+            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (cameraIntent.resolveActivity(getPackageManager()) != null) {
+                Log.d("MainActivity", "Lançando intent da câmera");
+                cameraLauncher.launch(cameraIntent);
+            } else {
+                Log.e("MainActivity", "Nenhum app de câmera encontrado");
+                Toast.makeText(this, "Câmera não disponível", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Erro ao abrir câmera: " + e.getMessage());
+            Toast.makeText(this, "Erro ao abrir câmera", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void checkCameraPermission() {
+        Log.d("MainActivity", "checkCameraPermission() chamado");
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Permissão da câmera não concedida, solicitando...");
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.CAMERA}, 
+                CAMERA_PERMISSION_REQUEST_CODE);
+        } else {
+            Log.d("MainActivity", "Permissão da câmera já concedida");
+        }
+    }
+    
+    public void requestCameraPermission() {
+        Log.d("MainActivity", "requestCameraPermission() chamado");
+        Log.d("MainActivity", "Verificando se já tem permissão...");
+        
+        // Verificar se a permissão já foi concedida
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
+        Log.d("MainActivity", "Status da permissão: " + permissionCheck + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        
+        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Permissão já concedida, abrindo câmera diretamente");
+            // Se já tem permissão, abrir câmera diretamente
+            if (currentDialog != null) {
+                currentDialog.openCameraAfterPermission();
+            } else if (currentNotCompletedDialog != null) {
+                currentNotCompletedDialog.openCameraAfterPermission();
+            }
+            return;
+        }
+        
+        // Verificar se devemos mostrar uma explicação
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+            Log.d("MainActivity", "Mostrando explicação da permissão");
+            // Mostrar explicação antes de solicitar
+            new AlertDialog.Builder(this)
+                .setTitle("Permissão da Câmera")
+                .setMessage("Este aplicativo precisa acessar a câmera para tirar fotos das coletas.")
+                .setPositiveButton("Permitir", (dialog, which) -> {
+                    Log.d("MainActivity", "Usuário aceitou explicação, solicitando permissão");
+                    ActivityCompat.requestPermissions(this, 
+                        new String[]{Manifest.permission.CAMERA}, 
+                        CAMERA_PERMISSION_REQUEST_CODE);
+                })
+                .setNegativeButton("Cancelar", (dialog, which) -> {
+                    Log.d("MainActivity", "Usuário cancelou a explicação");
+                    Toast.makeText(this, "Permissão da câmera é necessária para tirar fotos", Toast.LENGTH_LONG).show();
+                })
+                .show();
+        } else {
+            Log.d("MainActivity", "Solicitando permissão da câmera diretamente ao usuário");
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.CAMERA}, 
+                CAMERA_PERMISSION_REQUEST_CODE);
+        }
     }
 
     public MainViewModel getMainViewModel() {

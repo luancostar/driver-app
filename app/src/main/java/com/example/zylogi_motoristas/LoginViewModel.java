@@ -46,7 +46,9 @@ public class LoginViewModel extends AndroidViewModel { // MUDANÇA AQUI
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
-                _error.setValue("Falha na conexão. Verifique a internet.");
+                android.util.Log.e("LoginViewModel", "Erro de conexão: " + t.getMessage(), t);
+                android.util.Log.e("LoginViewModel", "URL tentativa: " + call.request().url());
+                _error.setValue("Falha na conexão: " + t.getMessage());
                 _isLoading.setValue(false);
             }
         });
