@@ -79,6 +79,16 @@ public class FinalizePickupDialog extends Dialog {
         // Carregar ocorrências da API
         loadOccurrencesFromApi();
 
+        // Configurar botão para COLETADO (verde)
+        buttonFinalize.setText("Coletado");
+        if (buttonFinalize instanceof com.google.android.material.button.MaterialButton) {
+            ((com.google.android.material.button.MaterialButton) buttonFinalize).setBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(0xFF4CAF50)); // Verde
+        } else {
+            buttonFinalize.setBackgroundColor(0xFF4CAF50);
+        }
+        buttonFinalize.setTextColor(0xFFFFFFFF); // Branco
+
         // Configurar listeners dos botões
         buttonCancel.setOnClickListener(v -> dismiss());
         

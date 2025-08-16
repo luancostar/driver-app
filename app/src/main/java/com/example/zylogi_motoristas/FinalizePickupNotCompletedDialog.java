@@ -78,6 +78,16 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         // Carregar ocorrências da API
         loadOccurrencesFromApi();
         
+        // Configurar botão para NÃO COLETADO (vermelho)
+        buttonFinalize.setText("Não Coletado");
+        if (buttonFinalize instanceof com.google.android.material.button.MaterialButton) {
+            ((com.google.android.material.button.MaterialButton) buttonFinalize).setBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(0xFFD32F2F)); // Vermelho
+        } else {
+            buttonFinalize.setBackgroundColor(0xFFD32F2F);
+        }
+        buttonFinalize.setTextColor(0xFFFFFFFF); // Branco
+
         // Configurar listeners dos botões
         buttonCancel.setOnClickListener(v -> dismiss());
         
