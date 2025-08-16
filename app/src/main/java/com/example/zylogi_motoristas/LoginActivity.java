@@ -42,28 +42,36 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(TAG, "=== onCreate iniciado ===");
-        setContentView(R.layout.activity_login);
+        
+        try {
+            setContentView(R.layout.activity_login);
 
-        // 1. Inicializa os componentes principais
-        loginViewModel = new ViewModelProvider(this).get(LoginViewModel.class);
-        authSessionManager = new AuthSessionManager(this);
-        Log.d(TAG, "AuthSessionManager criado");
+            // 1. Inicializa os componentes principais
+            loginViewModel = new ViewModelProvider(this).get(LoginViewModel.class);
+            authSessionManager = new AuthSessionManager(this);
+            Log.d(TAG, "AuthSessionManager criado");
 
-        // 2. Associa os componentes da tela e configura os listeners
-        setupViews();
-        Log.d(TAG, "Views configuradas");
+            // 2. Associa os componentes da tela e configura os listeners
+            setupViews();
+            Log.d(TAG, "Views configuradas");
 
-        // 3. Configura o prompt biométrico
-        setupBiometrics();
-        Log.d(TAG, "Biometria configurada");
+            // 3. Configura o prompt biométrico
+            setupBiometrics();
+            Log.d(TAG, "Biometria configurada");
 
-        // 4. Observa as mudanças do ViewModel
-        observeViewModel();
-        Log.d(TAG, "ViewModel observado");
+            // 4. Observa as mudanças do ViewModel
+            observeViewModel();
+            Log.d(TAG, "ViewModel observado");
 
-        // 5. Verifica se deve mostrar opção de biometria
-        checkAndSetupBiometricOption();
-        Log.d(TAG, "=== onCreate finalizado ===");
+            // 5. Verifica se deve mostrar opção de biometria
+            checkAndSetupBiometricOption();
+            Log.d(TAG, "=== onCreate finalizado ===");
+        } catch (Exception e) {
+            Log.e(TAG, "Erro crítico no onCreate da LoginActivity", e);
+            // Mostrar uma mensagem de erro e fechar o app
+            Toast.makeText(this, "Erro ao inicializar o aplicativo. Tente novamente.", Toast.LENGTH_LONG).show();
+            finishAffinity();
+        }
     }
 
     private void setupViews() {

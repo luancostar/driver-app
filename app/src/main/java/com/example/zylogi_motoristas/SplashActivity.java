@@ -49,11 +49,26 @@ public class SplashActivity extends AppCompatActivity {
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
-                Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
-                startActivity(intent);
-                finish();
-                // Adicionar transição suave
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                try {
+                    Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
+                    startActivity(intent);
+                    finish();
+                    // Adicionar transição suave
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                } catch (Exception e) {
+                    // Log do erro para debug
+                    android.util.Log.e("SplashActivity", "Erro ao navegar para LoginActivity", e);
+                    // Tentar novamente sem transição
+                    try {
+                        Intent intent = new Intent(SplashActivity.this, LoginActivity.class);
+                        startActivity(intent);
+                        finish();
+                    } catch (Exception e2) {
+                        android.util.Log.e("SplashActivity", "Erro crítico na navegação", e2);
+                        // Em último caso, fechar o app
+                        finishAffinity();
+                    }
+                }
             }
         }, SPLASH_TIMER);
     }

@@ -23,13 +23,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Variável de ambiente para produção (exemplo)
-            buildConfigField("String", "API_BASE_URL", "\"https://api.producao.com/\"")
+            // Variável de ambiente para homologação
+            buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
         }
         // ADICIONADO: Bloco para o modo de desenvolvimento
         debug {
-            // Variável de ambiente para desenvolvimento (localhost do seu PC)
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/\"")
+            // Variável de ambiente para homologação (desenvolvimento)
+            buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
         }
     }
     compileOptions {

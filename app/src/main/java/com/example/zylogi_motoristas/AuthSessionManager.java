@@ -28,7 +28,9 @@ public class AuthSessionManager {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             );
         } catch (GeneralSecurityException | IOException e) {
-            throw new RuntimeException("Could not create EncryptedSharedPreferences", e);
+            // Fallback para SharedPreferences normais em caso de falha
+            android.util.Log.w("AuthSessionManager", "Falha ao criar EncryptedSharedPreferences, usando SharedPreferences normal", e);
+            sharedPreferences = context.getSharedPreferences(FILE_NAME + "_fallback", Context.MODE_PRIVATE);
         }
     }
 

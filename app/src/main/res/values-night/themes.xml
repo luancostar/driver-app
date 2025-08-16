@@ -1,7 +1,20 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.ZylogiMotoristas" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+    <!-- Base application theme - Forçando tema claro sempre (mesmo no modo escuro) -->
+    <style name="Base.Theme.ZylogiMotoristas" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Cores personalizadas do Zylogi (iguais ao tema claro) -->
+        <item name="colorPrimary">@color/zylogi_brand_blue</item>
+        <item name="colorPrimaryVariant">@color/zylogi_dark_blue</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/zylogi_light_blue</item>
+        <item name="colorOnSecondary">@color/zylogi_dark_blue</item>
+        <item name="android:colorBackground">@android:color/white</item>
+        <item name="colorOnBackground">@color/zylogi_dark_blue</item>
+        <item name="colorSurface">@android:color/white</item>
+        <item name="colorOnSurface">@color/zylogi_dark_blue</item>
+        <!-- Forçar cores da status bar e navigation bar -->
+        <item name="android:statusBarColor">@color/zylogi_brand_blue</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

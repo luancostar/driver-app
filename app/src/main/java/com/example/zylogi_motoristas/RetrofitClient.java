@@ -15,25 +15,33 @@ public class RetrofitClient {
     public static Retrofit getClient(Context context) {
         // Só recria se for nulo, para não adicionar interceptors duplicados
         if (retrofit == null) {
-            // Cria o interceptor de logging
-            HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-            loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY); // Mostra tudo: URL, headers, body
+            try {
+                // Cria o interceptor de logging
+                HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
+                loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY); // Mostra tudo: URL, headers, body
 
-            OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                    .addInterceptor(new AuthInterceptor(context))
-                    .addInterceptor(loggingInterceptor) // Adiciona o espião aqui
-                    .build();
+                OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                        .addInterceptor(new AuthInterceptor(context))
+                        .addInterceptor(loggingInterceptor) // Adiciona o espião aqui
+                        .build();
 
-            // Configura Gson para não incluir campos vazios ou nulos
-            Gson gson = new GsonBuilder()
-                    .setLenient()
-                    .create();
+                // Configura Gson para não incluir campos vazios ou nulos
+                Gson gson = new GsonBuilder()
+                        .setLenient()
+                        .create();
 
-            retrofit = new Retrofit.Builder()
-                    .baseUrl(BuildConfig.API_BASE_URL)
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create(gson))
-                    .build();
+                retrofit = new Retrofit.Builder()
+                        .baseUrl(BuildConfig.API_BASE_URL)
+                        .client(okHttpClient)
+                        .addConverterFactory(GsonConverterFactory.create(gson))
+                        .build();
+                        
+                android.util.Log.d("RetrofitClient", "Cliente Retrofit criado com sucesso para: " + BuildConfig.API_BASE_URL);
+                
+            } catch (Exception e) {
+                android.util.Log.e("RetrofitClient", "Erro ao criar cliente Retrofit", e);
+                throw new RuntimeException("Falha ao configurar cliente de rede", e);
+            }
         }
         return retrofit;
     }

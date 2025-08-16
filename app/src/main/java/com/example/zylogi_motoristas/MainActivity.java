@@ -78,26 +78,43 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        
+        try {
+            setContentView(R.layout.activity_main);
 
-        // Inicializar gerenciadores
-        authSessionManager = new AuthSessionManager(this);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        handler = new Handler(Looper.getMainLooper());
+            // Inicializar gerenciadores
+            authSessionManager = new AuthSessionManager(this);
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+            handler = new Handler(Looper.getMainLooper());
 
-        setupViews();
-        setupCarousel();
-        setupCameraLauncher();
-        setupTopBar();
+            setupViews();
+            setupCarousel();
+            setupCameraLauncher();
+            setupTopBar();
 
-        mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
+            mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
-        setupListeners();
-        observeViewModel();
-        startTimeUpdates();
-        updateLocation();
+            setupListeners();
+            observeViewModel();
+            startTimeUpdates();
+            updateLocation();
 
-        mainViewModel.fetchPickups();
+            mainViewModel.fetchPickups();
+            
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Erro durante inicialização da MainActivity", e);
+            Toast.makeText(this, "Erro ao inicializar o aplicativo. Tente novamente.", Toast.LENGTH_LONG).show();
+            
+            // Tentar voltar para LoginActivity em caso de erro
+            try {
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception ex) {
+                android.util.Log.e("MainActivity", "Erro ao navegar para LoginActivity", ex);
+            }
+            finish();
+        }
     }
 
     private void setupViews() {
