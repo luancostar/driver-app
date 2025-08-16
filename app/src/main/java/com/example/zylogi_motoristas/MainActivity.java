@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,6 +14,9 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
@@ -370,21 +374,54 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 textLocation.setText("📍 Permissão negada");
             }
         } else if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.d("MainActivity", "Permissão da câmera concedida pelo usuário");
-                // Tentar abrir a câmera novamente
+            // Verificar resultados das permissões solicitadas
+            boolean cameraGranted = false;
+            boolean storageGranted = false;
+            
+            for (int i = 0; i < permissions.length; i++) {
+                if (permissions[i].equals(Manifest.permission.CAMERA)) {
+                    cameraGranted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                    Log.d("MainActivity", "Permissão da câmera: " + (cameraGranted ? "concedida" : "negada"));
+                } else if (permissions[i].equals(Manifest.permission.READ_EXTERNAL_STORAGE) || 
+                          permissions[i].equals(Manifest.permission.READ_MEDIA_IMAGES)) {
+                    storageGranted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                    Log.d("MainActivity", "Permissão de galeria: " + (storageGranted ? "concedida" : "negada"));
+                }
+            }
+            
+            // Mostrar mensagens apropriadas
+            if (!cameraGranted) {
+                Toast.makeText(this, "Permissão da câmera é necessária para tirar fotos", Toast.LENGTH_LONG).show();
+            }
+            if (!storageGranted) {
+                Toast.makeText(this, "Permissão de galeria é necessária para acessar fotos", Toast.LENGTH_LONG).show();
+            }
+            
+            // Se pelo menos uma permissão foi concedida e há um diálogo ativo, tentar abrir a funcionalidade correspondente
+            if (cameraGranted && (currentDialog != null || currentNotCompletedDialog != null)) {
+                Log.d("MainActivity", "Permissão da câmera concedida, tentando abrir câmera");
                 if (currentDialog != null) {
                     currentDialog.openCameraAfterPermission();
                 } else if (currentNotCompletedDialog != null) {
                     currentNotCompletedDialog.openCameraAfterPermission();
                 }
-            } else {
-                Log.d("MainActivity", "Permissão da câmera negada pelo usuário");
-                Toast.makeText(this, "Permissão da câmera é necessária para tirar fotos", Toast.LENGTH_LONG).show();
             }
+            
         } else if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.d("MainActivity", "Permissão de armazenamento concedida pelo usuário");
+            boolean storageGranted = false;
+            
+            // Verificar qual permissão foi concedida
+            for (int i = 0; i < permissions.length; i++) {
+                if (permissions[i].equals(Manifest.permission.READ_EXTERNAL_STORAGE) || 
+                    permissions[i].equals(Manifest.permission.READ_MEDIA_IMAGES)) {
+                    storageGranted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                    Log.d("MainActivity", "Permissão " + permissions[i] + ": " + (storageGranted ? "concedida" : "negada"));
+                    break;
+                }
+            }
+            
+            if (storageGranted) {
+                Log.d("MainActivity", "Permissão de galeria concedida pelo usuário");
                 // Tentar abrir a galeria novamente
                 if (currentDialog != null) {
                     currentDialog.openGalleryAfterPermission();
@@ -392,8 +429,8 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                     currentNotCompletedDialog.openGalleryAfterPermission();
                 }
             } else {
-                Log.d("MainActivity", "Permissão de armazenamento negada pelo usuário");
-                Toast.makeText(this, "Permissão de armazenamento é necessária para acessar a galeria", Toast.LENGTH_LONG).show();
+                Log.d("MainActivity", "Permissão de galeria negada pelo usuário");
+                Toast.makeText(this, "Permissão de galeria é necessária para acessar fotos", Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -528,14 +565,47 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
 
     private void checkCameraPermission() {
         Log.d("MainActivity", "checkCameraPermission() chamado");
+        
+        // Lista de permissões necessárias
+        List<String> permissionsNeeded = new ArrayList<>();
+        
+        // Verificar permissão da câmera
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) 
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.d("MainActivity", "Permissão da câmera não concedida, solicitando...");
-            ActivityCompat.requestPermissions(this, 
-                new String[]{Manifest.permission.CAMERA}, 
-                CAMERA_PERMISSION_REQUEST_CODE);
+            Log.d("MainActivity", "Permissão da câmera não concedida");
+            permissionsNeeded.add(Manifest.permission.CAMERA);
         } else {
             Log.d("MainActivity", "Permissão da câmera já concedida");
+        }
+        
+        // Verificar permissões de galeria baseado na versão do Android
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ (API 33+) - usar READ_MEDIA_IMAGES
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Permissão READ_MEDIA_IMAGES não concedida");
+                permissionsNeeded.add(Manifest.permission.READ_MEDIA_IMAGES);
+            } else {
+                Log.d("MainActivity", "Permissão READ_MEDIA_IMAGES já concedida");
+            }
+        } else {
+            // Android 12 e anteriores - usar READ_EXTERNAL_STORAGE
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Permissão READ_EXTERNAL_STORAGE não concedida");
+                permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            } else {
+                Log.d("MainActivity", "Permissão READ_EXTERNAL_STORAGE já concedida");
+            }
+        }
+        
+        // Solicitar permissões se necessário
+        if (!permissionsNeeded.isEmpty()) {
+            Log.d("MainActivity", "Solicitando permissões: " + permissionsNeeded.toString());
+            String[] permissionsArray = permissionsNeeded.toArray(new String[0]);
+            ActivityCompat.requestPermissions(this, permissionsArray, CAMERA_PERMISSION_REQUEST_CODE);
+        } else {
+            Log.d("MainActivity", "Todas as permissões já concedidas");
         }
     }
     
@@ -620,19 +690,33 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
         Log.d("MainActivity", "requestStoragePermission() chamado");
         Log.d("MainActivity", "Verificando se já tem permissão de armazenamento...");
         
-        // Verificar se a permissão já foi concedida
-        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
-        Log.d("MainActivity", "Status da permissão de armazenamento: " + permissionCheck + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        boolean hasPermission = false;
+        String permissionToRequest;
         
-        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+        // Verificar permissão baseado na versão do Android
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ (API 33+) - usar READ_MEDIA_IMAGES
+            permissionToRequest = Manifest.permission.READ_MEDIA_IMAGES;
+            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES);
+            hasPermission = permissionCheck == PackageManager.PERMISSION_GRANTED;
+            Log.d("MainActivity", "Status da permissão READ_MEDIA_IMAGES: " + permissionCheck + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        } else {
+            // Android 12 e anteriores - usar READ_EXTERNAL_STORAGE
+            permissionToRequest = Manifest.permission.READ_EXTERNAL_STORAGE;
+            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
+            hasPermission = permissionCheck == PackageManager.PERMISSION_GRANTED;
+            Log.d("MainActivity", "Status da permissão READ_EXTERNAL_STORAGE: " + permissionCheck + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        }
+        
+        if (hasPermission) {
             Log.d("MainActivity", "Permissão já concedida, abrindo galeria diretamente");
             // Se já tem permissão, abrir galeria diretamente
             launchGallery();
         } else {
-            Log.d("MainActivity", "Permissão não concedida, solicitando...");
+            Log.d("MainActivity", "Permissão não concedida, solicitando: " + permissionToRequest);
             // Se não tem permissão, solicitar
             ActivityCompat.requestPermissions(this, 
-                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 
+                new String[]{permissionToRequest}, 
                 STORAGE_PERMISSION_REQUEST_CODE);
         }
     }

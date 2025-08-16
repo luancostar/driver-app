@@ -25,6 +25,8 @@ import android.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 
 public class MainViewModel extends AndroidViewModel {
 
@@ -155,14 +157,14 @@ public class MainViewModel extends AndroidViewModel {
     
     private void finalizeWithMultipart(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, String status) {
         try {
-            // Preparar data de finalização
-            String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
-            
             // Criar RequestBody para campos de texto
             RequestBody statusBody = RequestBody.create(MediaType.parse("text/plain"), status);
-            RequestBody completionDateBody = RequestBody.create(MediaType.parse("text/plain"), completionDate);
             RequestBody observationBody = RequestBody.create(MediaType.parse("text/plain"), observationDriver != null ? observationDriver : "");
             RequestBody occurrenceIdBody = RequestBody.create(MediaType.parse("text/plain"), occurrenceId != null ? occurrenceId : "");
+            
+            // Adicionar data e hora de finalização (horário local do Brasil)
+            String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+            RequestBody completionDateBody = RequestBody.create(MediaType.parse("text/plain"), completionDate);
             
             // Processar a imagem Base64
             MultipartBody.Part imagePart = null;
@@ -180,31 +182,37 @@ public class MainViewModel extends AndroidViewModel {
                 base64Data = base64Data.replaceAll("\\s+", "");
                 android.util.Log.d("MainViewModel", "Tamanho do Base64 após limpeza: " + base64Data.length());
                 
-                byte[] imageBytes = Base64.decode(base64Data, Base64.NO_WRAP);
-                android.util.Log.d("MainViewModel", "Tamanho dos bytes decodificados: " + imageBytes.length);
+                byte[] originalImageBytes = Base64.decode(base64Data, Base64.NO_WRAP);
+                android.util.Log.d("MainViewModel", "Tamanho dos bytes decodificados: " + originalImageBytes.length);
                 
-                // Filtrar bytes nulos (0x00) que podem causar problemas de codificação UTF-8
-                ByteArrayOutputStream filteredBytes = new ByteArrayOutputStream();
-                int nullBytesCount = 0;
-                for (byte b : imageBytes) {
-                    if (b != 0) {
-                        filteredBytes.write(b);
-                    } else {
-                        nullBytesCount++;
-                    }
+                // Converter para Bitmap e depois para PNG
+                Bitmap bitmap = BitmapFactory.decodeByteArray(originalImageBytes, 0, originalImageBytes.length);
+                if (bitmap != null) {
+                    android.util.Log.d("MainViewModel", "Bitmap criado com sucesso: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                    
+                    // Converter bitmap para PNG
+                    ByteArrayOutputStream pngOutputStream = new ByteArrayOutputStream();
+                    boolean compressed = bitmap.compress(Bitmap.CompressFormat.PNG, 100, pngOutputStream);
+                    byte[] pngImageBytes = pngOutputStream.toByteArray();
+                    
+                    android.util.Log.d("MainViewModel", "Conversão para PNG: " + (compressed ? "Sucesso" : "Falha"));
+                    android.util.Log.d("MainViewModel", "Tamanho original (JPEG): " + originalImageBytes.length + " bytes");
+                    android.util.Log.d("MainViewModel", "Tamanho convertido (PNG): " + pngImageBytes.length + " bytes");
+                    
+                    // Criar MultipartBody.Part com PNG
+                    RequestBody imageBody = RequestBody.create(MediaType.parse("image/png"), pngImageBytes);
+                    imagePart = MultipartBody.Part.createFormData("image", "driver_photo.png", imageBody);
+                    
+                    android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'image' - Tamanho: " + pngImageBytes.length + " bytes");
+                    android.util.Log.d("MainViewModel", "Content-Type: image/png");
+                    android.util.Log.d("MainViewModel", "Filename: driver_photo.png");
+                    android.util.Log.d("MainViewModel", "🔄 Enviando como PNG (conversão de JPEG para PNG)");
+                    
+                    // Liberar bitmap da memória
+                    bitmap.recycle();
+                } else {
+                    android.util.Log.e("MainViewModel", "❌ Falha ao criar bitmap da imagem Base64");
                 }
-                imageBytes = filteredBytes.toByteArray();
-                android.util.Log.d("MainViewModel", "Bytes nulos removidos: " + nullBytesCount);
-                android.util.Log.d("MainViewModel", "Tamanho final dos bytes: " + imageBytes.length);
-                
-                // Criar MultipartBody.Part com filename para simular um arquivo real como na versão web
-                RequestBody imageBody = RequestBody.create(MediaType.parse("image/jpeg"), imageBytes);
-                imagePart = MultipartBody.Part.createFormData("image", "driver_photo.jpg", imageBody);
-                
-                android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'image' - Tamanho: " + imageBytes.length + " bytes");
-                android.util.Log.d("MainViewModel", "Content-Type: image/jpeg");
-                android.util.Log.d("MainViewModel", "Filename: driver_photo.jpg");
-                android.util.Log.d("MainViewModel", "🔄 Enviando como arquivo real (similar à versão web)");
             } else {
                 android.util.Log.w("MainViewModel", "❌ Imagem não processada - driverAttachmentUrl inválido ou nulo");
                 android.util.Log.w("MainViewModel", "Valor recebido: " + driverAttachmentUrl);
@@ -214,7 +222,6 @@ public class MainViewModel extends AndroidViewModel {
             android.util.Log.d("MainViewModel", "=== ENVIANDO REQUISIÇÃO MULTIPART ===");
             android.util.Log.d("MainViewModel", "🎯 Pickup ID: " + pickup.getId());
             android.util.Log.d("MainViewModel", "📊 Status: " + status);
-            android.util.Log.d("MainViewModel", "⏰ Completion Date: " + completionDate);
             android.util.Log.d("MainViewModel", "📝 Observation: " + (observationDriver != null ? observationDriver : "null"));
             android.util.Log.d("MainViewModel", "🔢 Occurrence ID: " + (occurrenceId != null ? occurrenceId : "null"));
             android.util.Log.d("MainViewModel", "📷 Image Part: " + (imagePart != null ? "Presente (MultipartBody.Part)" : "null"));
@@ -223,16 +230,16 @@ public class MainViewModel extends AndroidViewModel {
             android.util.Log.d("MainViewModel", "=== CAMPOS DA REQUISIÇÃO MULTIPART ===");
             try {
                 android.util.Log.d("MainViewModel", "Campo 'status': " + status + " (" + statusBody.contentLength() + " bytes)");
-                android.util.Log.d("MainViewModel", "Campo 'completionDate': " + completionDate + " (" + completionDateBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'observationDriver': " + (observationDriver != null ? observationDriver : "vazio") + " (" + observationBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'occurrenceId': " + (occurrenceId != null ? occurrenceId : "vazio") + " (" + occurrenceIdBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'completionDate': " + completionDate + " (" + completionDateBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'image': " + (imagePart != null ? "ARQUIVO PRESENTE (MultipartBody.Part)" : "❌ NULO - SEM ARQUIVO"));
             } catch (Exception e) {
                 android.util.Log.e("MainViewModel", "Erro ao obter tamanhos dos campos: " + e.getMessage());
             }
             
             // Fazer a requisição multipart
-            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, completionDateBody, observationBody, occurrenceIdBody, imagePart)
+            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, imagePart)
                     .enqueue(new Callback<Pickup>() {
                         @Override
                         public void onResponse(Call<Pickup> call, Response<Pickup> response) {

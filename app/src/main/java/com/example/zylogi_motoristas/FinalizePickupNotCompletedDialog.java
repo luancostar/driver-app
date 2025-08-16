@@ -284,9 +284,16 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     private void openGallery() {
         Log.d("FinalizePickupNotCompletedDialog", "openGallery() chamado");
         
-        // Verificar permissão de armazenamento
-        int permissionStatus = ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_EXTERNAL_STORAGE);
-        Log.d("FinalizePickupNotCompletedDialog", "Status da permissão de armazenamento: " + permissionStatus + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        // Verificar permissão baseada na versão do Android
+        String permission;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            permission = android.Manifest.permission.READ_MEDIA_IMAGES;
+        } else {
+            permission = android.Manifest.permission.READ_EXTERNAL_STORAGE;
+        }
+        
+        int permissionStatus = ContextCompat.checkSelfPermission(getContext(), permission);
+        Log.d("FinalizePickupNotCompletedDialog", "Status da permissão de armazenamento (" + permission + "): " + permissionStatus + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
         
         if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
             Log.d("FinalizePickupNotCompletedDialog", "Permissão já concedida, abrindo galeria diretamente");

@@ -45,9 +45,9 @@ public interface ApiService {
     Call<Pickup> finalizePickupWithPhoto(
             @Path("id") String pickupId,
             @Part("status") RequestBody status,
-            @Part("completionDate") RequestBody completionDate,
             @Part("observationDriver") RequestBody observationDriver,
             @Part("occurrenceId") RequestBody occurrenceId,
+            @Part("completionDate") RequestBody completionDate,
             @Part MultipartBody.Part image
     );
 }
