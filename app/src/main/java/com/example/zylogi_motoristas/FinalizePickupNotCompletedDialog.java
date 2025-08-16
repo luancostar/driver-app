@@ -36,7 +36,7 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     private TextView textViewPickupIdDialog;
     private Spinner spinnerOccurrence;
     private EditText editTextObservation;
-    private Button buttonCancel, buttonFinalize, buttonCamera;
+    private Button buttonCancel, buttonFinalize, buttonCamera, buttonGallery;
     private TextView textViewPhotoStatus;
     private OnFinalizeListener listener;
     private List<Occurrence> occurrenceList;
@@ -66,6 +66,7 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         buttonCancel = view.findViewById(R.id.buttonCancel);
         buttonFinalize = view.findViewById(R.id.buttonFinalize);
         buttonCamera = view.findViewById(R.id.buttonCamera);
+        buttonGallery = view.findViewById(R.id.buttonGallery);
         textViewPhotoStatus = view.findViewById(R.id.textViewPhotoStatus);
         
         // Configurar o texto do pickup
@@ -94,6 +95,11 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         buttonCamera.setOnClickListener(v -> {
             Log.d("FinalizePickupNotCompletedDialog", "Botão da câmera clicado!");
             openCamera();
+        });
+        
+        buttonGallery.setOnClickListener(v -> {
+            Log.d("FinalizePickupNotCompletedDialog", "Botão da galeria clicado!");
+            openGallery();
         });
         
         buttonFinalize.setOnClickListener(v -> {
@@ -265,13 +271,64 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
-            photoBase64 = Base64.encodeToString(byteArray, Base64.DEFAULT);
+            photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
             
             // Atualizar UI
             textViewPhotoStatus.setText("Foto capturada ✓");
             textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
             
             Log.d("FinalizePickupNotCompletedDialog", "Foto capturada e convertida para Base64");
+        }
+    }
+    
+    private void openGallery() {
+        Log.d("FinalizePickupNotCompletedDialog", "openGallery() chamado");
+        
+        // Verificar permissão de armazenamento
+        int permissionStatus = ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_EXTERNAL_STORAGE);
+        Log.d("FinalizePickupNotCompletedDialog", "Status da permissão de armazenamento: " + permissionStatus + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        
+        if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+            Log.d("FinalizePickupNotCompletedDialog", "Permissão já concedida, abrindo galeria diretamente");
+            openGalleryAfterPermission();
+        } else {
+            Log.d("FinalizePickupNotCompletedDialog", "Permissão de armazenamento negada, solicitando permissão");
+            // Solicitar permissão através da MainActivity
+            if (getContext() instanceof MainActivity) {
+                Log.d("FinalizePickupNotCompletedDialog", "Context é MainActivity, chamando requestStoragePermission");
+                ((MainActivity) getContext()).requestStoragePermission();
+            } else {
+                Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + getContext().getClass().getSimpleName());
+                Toast.makeText(getContext(), "Permissão de armazenamento necessária", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
+    public void openGalleryAfterPermission() {
+        Log.d("FinalizePickupNotCompletedDialog", "openGalleryAfterPermission() chamado");
+        
+        if (getContext() instanceof MainActivity) {
+            Log.d("FinalizePickupNotCompletedDialog", "Chamando startGalleryForResult na MainActivity");
+            ((MainActivity) getContext()).startGalleryForResult(this);
+        } else {
+            Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + getContext().getClass().getSimpleName());
+            Toast.makeText(getContext(), "Erro ao abrir galeria", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    public void onPhotoSelected(Bitmap photo) {
+        if (photo != null) {
+            // Converter para Base64
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
+            
+            // Atualizar UI
+            textViewPhotoStatus.setText("Foto selecionada ✓");
+            textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
+            
+            Log.d("FinalizePickupNotCompletedDialog", "Foto selecionada da galeria e convertida para Base64");
         }
     }
 

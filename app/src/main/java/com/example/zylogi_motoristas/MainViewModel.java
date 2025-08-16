@@ -18,6 +18,13 @@ import java.util.stream.Collectors; // Importe
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import android.util.Base64;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 public class MainViewModel extends AndroidViewModel {
 
@@ -134,22 +141,153 @@ public class MainViewModel extends AndroidViewModel {
         android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
         android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
         
+        // Verificar se há uma foto (Base64) para usar multipart
+        boolean hasPhoto = driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty() && driverAttachmentUrl.startsWith("data:image/");
+        
+        if (hasPhoto) {
+            android.util.Log.d("MainViewModel", "Usando multipart/form-data para envio com foto");
+            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "COMPLETED");
+        } else {
+            android.util.Log.d("MainViewModel", "Usando JSON para envio sem foto");
+            finalizeWithJson(pickup, observationDriver, occurrenceId, "COMPLETED");
+        }
+    }
+    
+    private void finalizeWithMultipart(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, String status) {
+        try {
+            // Preparar data de finalização
+            String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+            
+            // Criar RequestBody para campos de texto
+            RequestBody statusBody = RequestBody.create(MediaType.parse("text/plain"), status);
+            RequestBody completionDateBody = RequestBody.create(MediaType.parse("text/plain"), completionDate);
+            RequestBody observationBody = RequestBody.create(MediaType.parse("text/plain"), observationDriver != null ? observationDriver : "");
+            RequestBody occurrenceIdBody = RequestBody.create(MediaType.parse("text/plain"), occurrenceId != null ? occurrenceId : "");
+            
+            // Processar a imagem Base64
+            MultipartBody.Part imagePart = null;
+            android.util.Log.d("MainViewModel", "=== DEBUG DETALHADO DA IMAGEM ===");
+            android.util.Log.d("MainViewModel", "driverAttachmentUrl recebido: " + (driverAttachmentUrl != null ? driverAttachmentUrl.substring(0, Math.min(100, driverAttachmentUrl.length())) + "..." : "null"));
+            android.util.Log.d("MainViewModel", "Tamanho total da string: " + (driverAttachmentUrl != null ? driverAttachmentUrl.length() : 0));
+            
+            if (driverAttachmentUrl != null && driverAttachmentUrl.startsWith("data:image/")) {
+                // Extrair o Base64 da string data:image/jpeg;base64,xxxxx
+                String base64Data = driverAttachmentUrl.substring(driverAttachmentUrl.indexOf(",") + 1);
+                android.util.Log.d("MainViewModel", "Base64 extraído (primeiros 100 chars): " + base64Data.substring(0, Math.min(100, base64Data.length())) + "...");
+                android.util.Log.d("MainViewModel", "Tamanho do Base64 original: " + base64Data.length());
+                
+                // Limpar possíveis caracteres de quebra de linha ou espaços
+                base64Data = base64Data.replaceAll("\\s+", "");
+                android.util.Log.d("MainViewModel", "Tamanho do Base64 após limpeza: " + base64Data.length());
+                
+                byte[] imageBytes = Base64.decode(base64Data, Base64.NO_WRAP);
+                android.util.Log.d("MainViewModel", "Tamanho dos bytes decodificados: " + imageBytes.length);
+                
+                // Filtrar bytes nulos (0x00) que podem causar problemas de codificação UTF-8
+                ByteArrayOutputStream filteredBytes = new ByteArrayOutputStream();
+                int nullBytesCount = 0;
+                for (byte b : imageBytes) {
+                    if (b != 0) {
+                        filteredBytes.write(b);
+                    } else {
+                        nullBytesCount++;
+                    }
+                }
+                imageBytes = filteredBytes.toByteArray();
+                android.util.Log.d("MainViewModel", "Bytes nulos removidos: " + nullBytesCount);
+                android.util.Log.d("MainViewModel", "Tamanho final dos bytes: " + imageBytes.length);
+                
+                // Criar MultipartBody.Part com filename para simular um arquivo real como na versão web
+                RequestBody imageBody = RequestBody.create(MediaType.parse("image/jpeg"), imageBytes);
+                imagePart = MultipartBody.Part.createFormData("image", "driver_photo.jpg", imageBody);
+                
+                android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'image' - Tamanho: " + imageBytes.length + " bytes");
+                android.util.Log.d("MainViewModel", "Content-Type: image/jpeg");
+                android.util.Log.d("MainViewModel", "Filename: driver_photo.jpg");
+                android.util.Log.d("MainViewModel", "🔄 Enviando como arquivo real (similar à versão web)");
+            } else {
+                android.util.Log.w("MainViewModel", "❌ Imagem não processada - driverAttachmentUrl inválido ou nulo");
+                android.util.Log.w("MainViewModel", "Valor recebido: " + driverAttachmentUrl);
+            }
+            
+            // Log detalhado antes da requisição
+            android.util.Log.d("MainViewModel", "=== ENVIANDO REQUISIÇÃO MULTIPART ===");
+            android.util.Log.d("MainViewModel", "🎯 Pickup ID: " + pickup.getId());
+            android.util.Log.d("MainViewModel", "📊 Status: " + status);
+            android.util.Log.d("MainViewModel", "⏰ Completion Date: " + completionDate);
+            android.util.Log.d("MainViewModel", "📝 Observation: " + (observationDriver != null ? observationDriver : "null"));
+            android.util.Log.d("MainViewModel", "🔢 Occurrence ID: " + (occurrenceId != null ? occurrenceId : "null"));
+            android.util.Log.d("MainViewModel", "📷 Image Part: " + (imagePart != null ? "Presente (MultipartBody.Part)" : "null"));
+            
+            // Log detalhado de cada campo da requisição
+            android.util.Log.d("MainViewModel", "=== CAMPOS DA REQUISIÇÃO MULTIPART ===");
+            try {
+                android.util.Log.d("MainViewModel", "Campo 'status': " + status + " (" + statusBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'completionDate': " + completionDate + " (" + completionDateBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'observationDriver': " + (observationDriver != null ? observationDriver : "vazio") + " (" + observationBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'occurrenceId': " + (occurrenceId != null ? occurrenceId : "vazio") + " (" + occurrenceIdBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'image': " + (imagePart != null ? "ARQUIVO PRESENTE (MultipartBody.Part)" : "❌ NULO - SEM ARQUIVO"));
+            } catch (Exception e) {
+                android.util.Log.e("MainViewModel", "Erro ao obter tamanhos dos campos: " + e.getMessage());
+            }
+            
+            // Fazer a requisição multipart
+            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, completionDateBody, observationBody, occurrenceIdBody, imagePart)
+                    .enqueue(new Callback<Pickup>() {
+                        @Override
+                        public void onResponse(Call<Pickup> call, Response<Pickup> response) {
+                            if (response.isSuccessful()) {
+                                Pickup updatedPickup = response.body();
+                                android.util.Log.d("MainViewModel", "=== RESPOSTA DA API MULTIPART ===");
+                                android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso: " + (updatedPickup != null ? updatedPickup.getId() : "null"));
+                                if (updatedPickup != null) {
+                                    android.util.Log.d("MainViewModel", "Status: " + updatedPickup.getStatus());
+                                    android.util.Log.d("MainViewModel", "ID: " + updatedPickup.getId());
+                                }
+                                _updateResult.setValue("Coleta finalizada com sucesso!");
+                                fetchPickups();
+                            } else {
+                                android.util.Log.e("MainViewModel", "Falha ao finalizar coleta multipart: " + response.code());
+                                try {
+                                    String errorBody = response.errorBody() != null ? response.errorBody().string() : "Sem detalhes do erro";
+                                    android.util.Log.e("MainViewModel", "Erro detalhado: " + errorBody);
+                                } catch (Exception e) {
+                                    android.util.Log.e("MainViewModel", "Erro ao ler errorBody: " + e.getMessage());
+                                }
+                                _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
+                                _isLoading.setValue(false);
+                            }
+                        }
+                        
+                        @Override
+                        public void onFailure(Call<Pickup> call, Throwable t) {
+                            android.util.Log.e("MainViewModel", "Erro de conexão multipart: " + t.getMessage());
+                            _updateResult.setValue("Erro de conexão: " + t.getMessage());
+                            _isLoading.setValue(false);
+                        }
+                    });
+                    
+        } catch (Exception e) {
+            android.util.Log.e("MainViewModel", "Erro ao preparar multipart: " + e.getMessage());
+            _updateResult.setValue("Erro ao processar imagem: " + e.getMessage());
+            _isLoading.setValue(false);
+        }
+    }
+    
+    private void finalizeWithJson(Pickup pickup, String observationDriver, String occurrenceId, String status) {
         // Criar Map com todos os dados do motorista
         Map<String, Object> updates = new HashMap<>();
-        updates.put("status", "COMPLETED");
+        updates.put("status", status);
         
         // Adicionar data e hora de finalização (horário local do Brasil)
-         String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
-         updates.put("completionDate", completionDate);
+        String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
+        updates.put("completionDate", completionDate);
         
         if (observationDriver != null && !observationDriver.trim().isEmpty()) {
             updates.put("observationDriver", observationDriver);
         }
         if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
             updates.put("occurrenceId", occurrenceId);
-        }
-        if (driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty()) {
-            updates.put("driverAttachmentUrl", driverAttachmentUrl);
         }
         
         // Enviar apenas os campos que têm valores
@@ -158,11 +296,11 @@ public class MainViewModel extends AndroidViewModel {
                     @Override
                     public void onResponse(Call<Pickup> call, Response<Pickup> response) {
                         if (response.isSuccessful()) {
-                            android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso - apenas status enviado");
+                            android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso usando JSON");
                             _updateResult.setValue("Coleta finalizada com sucesso!");
-                            fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
+                            fetchPickups();
                         } else {
-                            android.util.Log.e("MainViewModel", "Falha ao finalizar coleta: " + response.code());
+                            android.util.Log.e("MainViewModel", "Falha ao finalizar coleta JSON: " + response.code());
                             _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
                             _isLoading.setValue(false);
                         }
@@ -170,7 +308,7 @@ public class MainViewModel extends AndroidViewModel {
                     
                     @Override
                     public void onFailure(Call<Pickup> call, Throwable t) {
-                        android.util.Log.e("MainViewModel", "Erro de conexão: " + t.getMessage());
+                        android.util.Log.e("MainViewModel", "Erro de conexão JSON: " + t.getMessage());
                         _updateResult.setValue("Erro de conexão: " + t.getMessage());
                         _isLoading.setValue(false);
                     }
@@ -188,47 +326,16 @@ public class MainViewModel extends AndroidViewModel {
         android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
         android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
         
-        // Criar Map com todos os dados do motorista
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", "NOT_COMPLETED");
+        // Verificar se há uma foto (Base64) para usar multipart
+        boolean hasPhoto = driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty() && driverAttachmentUrl.startsWith("data:image/");
         
-        // Adicionar data e hora de finalização (horário local do Brasil)
-         String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
-         updates.put("completionDate", completionDate);
-        
-        if (observationDriver != null && !observationDriver.trim().isEmpty()) {
-            updates.put("observationDriver", observationDriver);
+        if (hasPhoto) {
+            android.util.Log.d("MainViewModel", "Usando multipart/form-data para envio com foto (NOT_COMPLETED)");
+            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "NOT_COMPLETED");
+        } else {
+            android.util.Log.d("MainViewModel", "Usando JSON para envio sem foto (NOT_COMPLETED)");
+            finalizeWithJson(pickup, observationDriver, occurrenceId, "NOT_COMPLETED");
         }
-        if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
-            updates.put("occurrenceId", occurrenceId);
-        }
-        if (driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty()) {
-            updates.put("driverAttachmentUrl", driverAttachmentUrl);
-        }
-        
-        // Enviar apenas os campos que têm valores
-        apiService.finalizePickup(pickup.getId(), updates)
-                .enqueue(new Callback<Pickup>() {
-                    @Override
-                    public void onResponse(Call<Pickup> call, Response<Pickup> response) {
-                        if (response.isSuccessful()) {
-                            android.util.Log.d("MainViewModel", "Coleta marcada como não coletada com sucesso");
-                            _updateResult.setValue("Coleta marcada como não coletada com sucesso!");
-                            fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
-                        } else {
-                            android.util.Log.e("MainViewModel", "Falha ao marcar coleta como não coletada: " + response.code());
-                            _updateResult.setValue("Falha ao marcar a coleta como não coletada: " + response.code());
-                            _isLoading.setValue(false);
-                        }
-                    }
-                    
-                    @Override
-                    public void onFailure(Call<Pickup> call, Throwable t) {
-                        android.util.Log.e("MainViewModel", "Erro de conexão: " + t.getMessage());
-                        _updateResult.setValue("Erro de conexão: " + t.getMessage());
-                        _isLoading.setValue(false);
-                    }
-                });
     }
 
 

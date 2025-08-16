@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Map;
 import retrofit2.http.PATCH;
 import retrofit2.http.Path;
+import retrofit2.http.Multipart;
+import retrofit2.http.Part;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 
 public interface ApiService {
 
@@ -33,5 +37,17 @@ public interface ApiService {
     Call<Pickup> finalizePickup(
             @Path("id") String pickupId,
             @Body Map<String, Object> updates
+    );
+
+    // Método para finalizar coletas com foto usando multipart/form-data
+    @Multipart
+    @PATCH("pickups/{id}/driver-finalize")
+    Call<Pickup> finalizePickupWithPhoto(
+            @Path("id") String pickupId,
+            @Part("status") RequestBody status,
+            @Part("completionDate") RequestBody completionDate,
+            @Part("observationDriver") RequestBody observationDriver,
+            @Part("occurrenceId") RequestBody occurrenceId,
+            @Part MultipartBody.Part image
     );
 }

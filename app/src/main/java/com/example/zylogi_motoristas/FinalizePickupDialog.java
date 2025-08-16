@@ -36,7 +36,7 @@ public class FinalizePickupDialog extends Dialog {
     private TextView pickupIdText;
     private Spinner spinnerOccurrence;
     private EditText editTextObservation;
-    private Button buttonCancel, buttonFinalize, buttonCamera;
+    private Button buttonCancel, buttonFinalize, buttonCamera, buttonGallery;
     private TextView textViewPhotoStatus;
     private OnFinalizeListener listener;
     private List<Occurrence> occurrenceList;
@@ -67,6 +67,7 @@ public class FinalizePickupDialog extends Dialog {
         buttonCancel = view.findViewById(R.id.buttonCancel);
         buttonFinalize = view.findViewById(R.id.buttonFinalize);
         buttonCamera = view.findViewById(R.id.buttonCamera);
+        buttonGallery = view.findViewById(R.id.buttonGallery);
         textViewPhotoStatus = view.findViewById(R.id.textViewPhotoStatus);
 
         // Configurar referenceId da coleta
@@ -95,6 +96,11 @@ public class FinalizePickupDialog extends Dialog {
         buttonCamera.setOnClickListener(v -> {
             Log.d("FinalizePickupDialog", "Botão da câmera clicado!");
             openCamera();
+        });
+        
+        buttonGallery.setOnClickListener(v -> {
+            Log.d("FinalizePickupDialog", "Botão da galeria clicado!");
+            openGallery();
         });
         
         buttonFinalize.setOnClickListener(v -> {
@@ -284,17 +290,99 @@ public class FinalizePickupDialog extends Dialog {
             Toast.makeText(getContext(), "Erro ao abrir câmera", Toast.LENGTH_SHORT).show();
         }
     }
+    
+    private void openGallery() {
+        Log.d("FinalizePickupDialog", "openGallery() chamado");
+        
+        // Verificar permissão de leitura de armazenamento externo
+        int permissionStatus = ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.READ_EXTERNAL_STORAGE);
+        Log.d("FinalizePickupDialog", "Status da permissão de armazenamento: " + permissionStatus + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        
+        if (permissionStatus != PackageManager.PERMISSION_GRANTED) {
+            Log.d("FinalizePickupDialog", "Permissão de armazenamento negada, solicitando permissão");
+            // Solicitar permissão através da MainActivity
+            if (getContext() instanceof MainActivity) {
+                Log.d("FinalizePickupDialog", "Context é MainActivity, chamando requestStoragePermission");
+                ((MainActivity) getContext()).requestStoragePermission();
+            } else {
+                Log.e("FinalizePickupDialog", "Context não é MainActivity: " + getContext().getClass().getSimpleName());
+                Toast.makeText(getContext(), "Permissão de armazenamento necessária", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        
+        Log.d("FinalizePickupDialog", "Permissão já concedida, abrindo galeria diretamente");
+        openGalleryAfterPermission();
+    }
+    
+    public void openGalleryAfterPermission() {
+        Log.d("FinalizePickupDialog", "openGalleryAfterPermission() chamado");
+        Log.d("FinalizePickupDialog", "Context class: " + getContext().getClass().getName());
+        
+        Context context = getContext();
+        if (context instanceof MainActivity) {
+            Log.d("FinalizePickupDialog", "Chamando startGalleryForResult na MainActivity");
+            ((MainActivity) context).startGalleryForResult(this);
+        } else {
+            Log.e("FinalizePickupDialog", "Context não é MainActivity: " + context.getClass().getName());
+            // Tentar encontrar a MainActivity através do contexto
+            if (context instanceof android.view.ContextThemeWrapper) {
+                Context baseContext = ((android.view.ContextThemeWrapper) context).getBaseContext();
+                Log.d("FinalizePickupDialog", "BaseContext class: " + baseContext.getClass().getName());
+                if (baseContext instanceof MainActivity) {
+                    Log.d("FinalizePickupDialog", "Usando BaseContext como MainActivity");
+                    ((MainActivity) baseContext).startGalleryForResult(this);
+                    return;
+                }
+            }
+            Toast.makeText(getContext(), "Erro ao abrir galeria", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     public void onPhotoTaken(Bitmap photo) {
         if (photo != null) {
+            Log.d("FinalizePickupDialog", "=== PROCESSANDO FOTO ===");
+            Log.d("FinalizePickupDialog", "Bitmap recebido - Width: " + photo.getWidth() + ", Height: " + photo.getHeight());
+            
             // Converter bitmap para base64
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
+            
+            Log.d("FinalizePickupDialog", "Foto convertida para Base64 - Tamanho: " + byteArray.length + " bytes");
+            Log.d("FinalizePickupDialog", "Base64 length: " + photoBase64.length() + " caracteres");
+            Log.d("FinalizePickupDialog", "Base64 preview (primeiros 100 chars): " + photoBase64.substring(0, Math.min(100, photoBase64.length())));
+            
+            textViewPhotoStatus.setText("✅ Foto capturada");
+            textViewPhotoStatus.setTextColor(ContextCompat.getColor(getContext(), android.R.color.holo_green_dark));
+        } else {
+            Log.e("FinalizePickupDialog", "Bitmap recebido é null!");
+        }
+    }
+    
+    public void onPhotoSelected(Bitmap photo) {
+        if (photo != null) {
+            Log.d("FinalizePickupDialog", "=== PROCESSANDO FOTO DA GALERIA ===");
+            Log.d("FinalizePickupDialog", "Bitmap recebido - Width: " + photo.getWidth() + ", Height: " + photo.getHeight());
+            
+            // Converter para Base64
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             photoBase64 = Base64.encodeToString(byteArray, Base64.DEFAULT);
             
-            textViewPhotoStatus.setText("✅ Foto capturada");
+            Log.d("FinalizePickupDialog", "Foto da galeria convertida para Base64");
+            Log.d("FinalizePickupDialog", "Tamanho do array de bytes: " + byteArray.length);
+            Log.d("FinalizePickupDialog", "Tamanho da string Base64: " + photoBase64.length());
+            Log.d("FinalizePickupDialog", "Preview Base64: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
+            Log.d("FinalizePickupDialog", "Foto da galeria salva como Base64 com sucesso!");
+            textViewPhotoStatus.setText("✅ Foto da galeria selecionada!");
             textViewPhotoStatus.setTextColor(ContextCompat.getColor(getContext(), android.R.color.holo_green_dark));
+        } else {
+            Log.e("FinalizePickupDialog", "Erro: Bitmap da foto da galeria é nulo");
+            textViewPhotoStatus.setText("❌ Erro ao selecionar foto");
+            textViewPhotoStatus.setTextColor(ContextCompat.getColor(getContext(), android.R.color.holo_red_dark));
         }
     }
 
@@ -308,7 +396,13 @@ public class FinalizePickupDialog extends Dialog {
         Log.d("FinalizePickupDialog", "Pickup ID: " + currentPickup.getId());
         Log.d("FinalizePickupDialog", "Observação: '" + observation + "'");
         Log.d("FinalizePickupDialog", "Occurrence ID: '" + occurrenceId + "'");
-        Log.d("FinalizePickupDialog", "Driver Attachment URL: " + (photoBase64 != null ? "Foto presente (Base64)" : "Sem foto"));
+        Log.d("FinalizePickupDialog", "photoBase64 is null: " + (photoBase64 == null));
+        if (photoBase64 != null) {
+            Log.d("FinalizePickupDialog", "photoBase64 length: " + photoBase64.length());
+            Log.d("FinalizePickupDialog", "photoBase64 preview: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
+        }
+        Log.d("FinalizePickupDialog", "driverAttachmentUrl: " + driverAttachmentUrl);
+        Log.d("FinalizePickupDialog", "driverAttachmentUrl length: " + (driverAttachmentUrl != null ? driverAttachmentUrl.length() : "null"));
         
         if (occurrence != null) {
             Log.d("FinalizePickupDialog", "Occurrence Name: " + occurrence.getName());

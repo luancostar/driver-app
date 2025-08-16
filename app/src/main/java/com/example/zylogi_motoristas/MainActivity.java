@@ -29,6 +29,10 @@ import java.util.List;
 import java.util.Locale;
 import android.location.Address;
 import android.location.Geocoder;
+import android.net.Uri;
+import android.graphics.BitmapFactory;
+import java.io.IOException;
+import java.io.InputStream;
 
 import com.auth0.android.jwt.JWT;
 
@@ -72,11 +76,13 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private Runnable timeUpdateRunnable;
     
     private ActivityResultLauncher<Intent> cameraLauncher;
+    private ActivityResultLauncher<Intent> galleryLauncher;
     private FinalizePickupDialog currentDialog;
     private FinalizePickupNotCompletedDialog currentNotCompletedDialog;
     
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -148,7 +154,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     }
 
     private void setupCameraLauncher() {
-        Log.d("MainActivity", "Configurando cameraLauncher");
+        Log.d("MainActivity", "Configurando cameraLauncher e galleryLauncher");
+        
+        // Configurar launcher da câmera
         cameraLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -168,6 +176,40 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 }
             }
         );
+        
+        // Configurar launcher da galeria
+        galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                Log.d("MainActivity", "Resultado da galeria: " + result.getResultCode());
+                
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri imageUri = result.getData().getData();
+                    if (imageUri != null) {
+                        Log.d("MainActivity", "Imagem selecionada da galeria: " + imageUri.toString());
+                        try {
+                            InputStream inputStream = getContentResolver().openInputStream(imageUri);
+                            Bitmap imageBitmap = BitmapFactory.decodeStream(inputStream);
+                            if (imageBitmap != null) {
+                                Log.d("MainActivity", "Imagem da galeria carregada com sucesso");
+                                deliverPhotoFromGalleryToDialog(imageBitmap);
+                            } else {
+                                Log.e("MainActivity", "Erro ao decodificar imagem da galeria");
+                                Toast.makeText(this, "Erro ao carregar imagem", Toast.LENGTH_SHORT).show();
+                            }
+                            if (inputStream != null) {
+                                inputStream.close();
+                            }
+                        } catch (IOException e) {
+                            Log.e("MainActivity", "Erro ao carregar imagem da galeria: " + e.getMessage());
+                            Toast.makeText(this, "Erro ao carregar imagem", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                } else {
+                    Log.d("MainActivity", "Galeria cancelada ou erro");
+                }
+            }
+        );
     }
     
     private void deliverPhotoToDialog(Bitmap bitmap) {
@@ -177,6 +219,16 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             currentNotCompletedDialog.onPhotoTaken(bitmap);
         } else {
             Log.w("MainActivity", "Nenhum diálogo ativo para receber a foto");
+        }
+    }
+    
+    private void deliverPhotoFromGalleryToDialog(Bitmap bitmap) {
+        if (currentDialog != null) {
+            Log.d("MainActivity", "Entregando foto da galeria para FinalizePickupDialog");
+            currentDialog.onPhotoSelected(bitmap);
+        } else if (currentNotCompletedDialog != null) {
+            Log.d("MainActivity", "Entregando foto da galeria para FinalizePickupNotCompletedDialog");
+            currentNotCompletedDialog.onPhotoSelected(bitmap);
         }
     }
 
@@ -329,6 +381,19 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             } else {
                 Log.d("MainActivity", "Permissão da câmera negada pelo usuário");
                 Toast.makeText(this, "Permissão da câmera é necessária para tirar fotos", Toast.LENGTH_LONG).show();
+            }
+        } else if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Permissão de armazenamento concedida pelo usuário");
+                // Tentar abrir a galeria novamente
+                if (currentDialog != null) {
+                    currentDialog.openGalleryAfterPermission();
+                } else if (currentNotCompletedDialog != null) {
+                    currentNotCompletedDialog.openGalleryAfterPermission();
+                }
+            } else {
+                Log.d("MainActivity", "Permissão de armazenamento negada pelo usuário");
+                Toast.makeText(this, "Permissão de armazenamento é necessária para acessar a galeria", Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -516,6 +581,59 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             ActivityCompat.requestPermissions(this, 
                 new String[]{Manifest.permission.CAMERA}, 
                 CAMERA_PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    public void startGalleryForResult(FinalizePickupDialog dialog) {
+        Log.d("MainActivity", "startGalleryForResult() chamado para FinalizePickupDialog");
+        currentDialog = dialog;
+        requestStoragePermission();
+    }
+    
+    public void startGalleryForResult(FinalizePickupNotCompletedDialog dialog) {
+        Log.d("MainActivity", "startGalleryForResult() chamado para FinalizePickupNotCompletedDialog");
+        currentNotCompletedDialog = dialog;
+        requestStoragePermission();
+    }
+    
+    private void launchGallery() {
+        Log.d("MainActivity", "Abrindo galeria...");
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        galleryLauncher.launch(intent);
+    }
+    
+    private void checkStoragePermission() {
+        Log.d("MainActivity", "checkStoragePermission() chamado");
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) 
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Permissão de armazenamento não concedida, solicitando...");
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 
+                STORAGE_PERMISSION_REQUEST_CODE);
+        } else {
+            Log.d("MainActivity", "Permissão de armazenamento já concedida");
+        }
+    }
+    
+    public void requestStoragePermission() {
+        Log.d("MainActivity", "requestStoragePermission() chamado");
+        Log.d("MainActivity", "Verificando se já tem permissão de armazenamento...");
+        
+        // Verificar se a permissão já foi concedida
+        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
+        Log.d("MainActivity", "Status da permissão de armazenamento: " + permissionCheck + " (GRANTED=" + PackageManager.PERMISSION_GRANTED + ")");
+        
+        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Permissão já concedida, abrindo galeria diretamente");
+            // Se já tem permissão, abrir galeria diretamente
+            launchGallery();
+        } else {
+            Log.d("MainActivity", "Permissão não concedida, solicitando...");
+            // Se não tem permissão, solicitar
+            ActivityCompat.requestPermissions(this, 
+                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 
+                STORAGE_PERMISSION_REQUEST_CODE);
         }
     }
 
