@@ -313,12 +313,24 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     
     public void openGalleryAfterPermission() {
         Log.d("FinalizePickupNotCompletedDialog", "openGalleryAfterPermission() chamado");
+        Log.d("FinalizePickupNotCompletedDialog", "Context class: " + getContext().getClass().getName());
         
-        if (getContext() instanceof MainActivity) {
+        Context context = getContext();
+        if (context instanceof MainActivity) {
             Log.d("FinalizePickupNotCompletedDialog", "Chamando startGalleryForResult na MainActivity");
-            ((MainActivity) getContext()).startGalleryForResult(this);
+            ((MainActivity) context).startGalleryForResult(this);
         } else {
-            Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + getContext().getClass().getSimpleName());
+            Log.e("FinalizePickupNotCompletedDialog", "Context não é MainActivity: " + context.getClass().getName());
+            // Tentar encontrar a MainActivity através do contexto
+            if (context instanceof android.view.ContextThemeWrapper) {
+                Context baseContext = ((android.view.ContextThemeWrapper) context).getBaseContext();
+                Log.d("FinalizePickupNotCompletedDialog", "BaseContext class: " + baseContext.getClass().getName());
+                if (baseContext instanceof MainActivity) {
+                    Log.d("FinalizePickupNotCompletedDialog", "Usando BaseContext como MainActivity");
+                    ((MainActivity) baseContext).startGalleryForResult(this);
+                    return;
+                }
+            }
             Toast.makeText(getContext(), "Erro ao abrir galeria", Toast.LENGTH_SHORT).show();
         }
     }
