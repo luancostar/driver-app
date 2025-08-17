@@ -267,17 +267,26 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
 
     public void onPhotoTaken(Bitmap photo) {
         if (photo != null) {
+            Log.d("FinalizePickupNotCompletedDialog", "=== PROCESSANDO FOTO DA CÂMERA ====");
+            Log.d("FinalizePickupNotCompletedDialog", "Bitmap recebido - Width: " + photo.getWidth() + ", Height: " + photo.getHeight());
+            
             // Converter para Base64
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
             
+            Log.d("FinalizePickupNotCompletedDialog", "Foto convertida para Base64 - Tamanho: " + byteArray.length + " bytes");
+            Log.d("FinalizePickupNotCompletedDialog", "Base64 length: " + photoBase64.length() + " caracteres");
+            Log.d("FinalizePickupNotCompletedDialog", "Base64 preview (primeiros 100 chars): " + photoBase64.substring(0, Math.min(100, photoBase64.length())));
+            
             // Atualizar UI
-            textViewPhotoStatus.setText("Foto capturada ✓");
+            textViewPhotoStatus.setText("✅ Foto capturada");
             textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
             
-            Log.d("FinalizePickupNotCompletedDialog", "Foto capturada e convertida para Base64");
+            Log.d("FinalizePickupNotCompletedDialog", "Foto da câmera salva como Base64 com sucesso!");
+        } else {
+            Log.e("FinalizePickupNotCompletedDialog", "Erro: Bitmap da foto da câmera é nulo");
         }
     }
     
@@ -337,17 +346,29 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     
     public void onPhotoSelected(Bitmap photo) {
         if (photo != null) {
+            Log.d("FinalizePickupNotCompletedDialog", "=== PROCESSANDO FOTO DA GALERIA ====");
+            Log.d("FinalizePickupNotCompletedDialog", "Bitmap recebido - Width: " + photo.getWidth() + ", Height: " + photo.getHeight());
+            
             // Converter para Base64
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
             photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
             
+            Log.d("FinalizePickupNotCompletedDialog", "Foto da galeria convertida para Base64");
+            Log.d("FinalizePickupNotCompletedDialog", "Tamanho do array de bytes: " + byteArray.length);
+            Log.d("FinalizePickupNotCompletedDialog", "Tamanho da string Base64: " + photoBase64.length());
+            Log.d("FinalizePickupNotCompletedDialog", "Preview Base64: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
+            
             // Atualizar UI
-            textViewPhotoStatus.setText("Foto selecionada ✓");
+            textViewPhotoStatus.setText("✅ Foto da galeria selecionada!");
             textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
             
-            Log.d("FinalizePickupNotCompletedDialog", "Foto selecionada da galeria e convertida para Base64");
+            Log.d("FinalizePickupNotCompletedDialog", "Foto da galeria salva como Base64 com sucesso!");
+        } else {
+            Log.e("FinalizePickupNotCompletedDialog", "Erro: Bitmap da foto da galeria é nulo");
+            textViewPhotoStatus.setText("❌ Erro ao selecionar foto");
+            textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_red_dark));
         }
     }
 
@@ -361,6 +382,12 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         Log.d("FinalizePickupNotCompletedDialog", "Pickup ID: " + currentPickup.getId());
         Log.d("FinalizePickupNotCompletedDialog", "Observação: '" + observation + "'");
         Log.d("FinalizePickupNotCompletedDialog", "Occurrence ID: '" + occurrenceId + "'");
+        Log.d("FinalizePickupNotCompletedDialog", "photoBase64 is null: " + (photoBase64 == null));
+        if (photoBase64 != null) {
+            Log.d("FinalizePickupNotCompletedDialog", "photoBase64 length: " + photoBase64.length());
+            Log.d("FinalizePickupNotCompletedDialog", "photoBase64 preview: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
+        }
+        Log.d("FinalizePickupNotCompletedDialog", "driverAttachmentUrl: " + driverAttachmentUrl);
         Log.d("FinalizePickupNotCompletedDialog", "Driver Attachment URL: " + (photoBase64 != null ? "Foto presente (Base64)" : "Sem foto"));
         
         if (occurrence != null) {

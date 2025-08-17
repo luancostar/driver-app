@@ -36,6 +36,8 @@ public class FinalizePickupDialog extends Dialog {
     private TextView pickupIdText;
     private Spinner spinnerOccurrence;
     private EditText editTextObservation;
+    private EditText editTextQuantity;
+    private TextView labelOccurrence, labelQuantity;
     private Button buttonCancel, buttonFinalize, buttonCamera, buttonGallery;
     private TextView textViewPhotoStatus;
     private OnFinalizeListener listener;
@@ -64,11 +66,20 @@ public class FinalizePickupDialog extends Dialog {
         pickupIdText = view.findViewById(R.id.textViewPickupIdDialog);
         spinnerOccurrence = view.findViewById(R.id.spinnerOccurrence);
         editTextObservation = view.findViewById(R.id.editTextObservation);
+        editTextQuantity = view.findViewById(R.id.editTextQuantity);
+        labelOccurrence = view.findViewById(R.id.labelOccurrence);
+        labelQuantity = view.findViewById(R.id.labelQuantity);
         buttonCancel = view.findViewById(R.id.buttonCancel);
         buttonFinalize = view.findViewById(R.id.buttonFinalize);
         buttonCamera = view.findViewById(R.id.buttonCamera);
         buttonGallery = view.findViewById(R.id.buttonGallery);
         textViewPhotoStatus = view.findViewById(R.id.textViewPhotoStatus);
+
+        // Para coletas coletadas, ocultar spinner de ocorrências e mostrar campo de quantidade
+        labelOccurrence.setVisibility(View.GONE);
+        spinnerOccurrence.setVisibility(View.GONE);
+        labelQuantity.setVisibility(View.VISIBLE);
+        editTextQuantity.setVisibility(View.VISIBLE);
 
         // Configurar referenceId da coleta
         if (pickup.getReferenceId() != null && !pickup.getReferenceId().isEmpty()) {
@@ -104,36 +115,22 @@ public class FinalizePickupDialog extends Dialog {
         });
         
         buttonFinalize.setOnClickListener(v -> {
-            int selectedPosition = spinnerOccurrence.getSelectedItemPosition();
             String observation = editTextObservation.getText().toString().trim();
 
-            if (selectedPosition == 0) { // "Selecione uma ocorrência"
-                Toast.makeText(getContext(), "Por favor, selecione uma ocorrência", Toast.LENGTH_SHORT).show();
+            // Para coletas coletadas, usar sempre a ocorrência com referenceId=1
+            // Não precisamos validar seleção do spinner pois ele está oculto
+            Occurrence defaultOccurrence = findOccurrenceByReferenceId(1);
+            
+            if (defaultOccurrence == null) {
+                Toast.makeText(getContext(), "Erro: Ocorrência padrão não encontrada", Toast.LENGTH_SHORT).show();
+                Log.e("FinalizePickupDialog", "Ocorrência com referenceId=1 não foi encontrada!");
                 return;
             }
-
-            // Obter a ocorrência selecionada
-            Occurrence selectedOccurrence = null;
-            Log.d("FinalizePickupDialog", "Selected position: " + selectedPosition);
-            Log.d("FinalizePickupDialog", "Occurrence list size: " + occurrenceList.size());
             
-            if (!occurrenceList.isEmpty() && selectedPosition <= occurrenceList.size()) {
-                // Usando ocorrência da API
-                selectedOccurrence = occurrenceList.get(selectedPosition - 1); // -1 porque o primeiro item é "Selecione..."
-                Log.d("FinalizePickupDialog", "Usando ocorrência da API: " + selectedOccurrence.getName() + " (ID: " + selectedOccurrence.getId() + ")");
-            } else {
-                // Fallback: criar um objeto Occurrence temporário com o nome selecionado
-                String selectedName = spinnerOccurrence.getSelectedItem().toString();
-                selectedOccurrence = new Occurrence();
-                selectedOccurrence.setName(selectedName);
-                selectedOccurrence.setOccurrenceNumber(selectedPosition); // Usar a posição como número temporário
-                // Para fallback, vamos usar um ID baseado na posição
-                selectedOccurrence.setId("fallback_" + selectedPosition);
-                Log.d("FinalizePickupDialog", "Usando fallback: " + selectedName + " (ID temporário: fallback_" + selectedPosition + ")");
-            }
+            Log.d("FinalizePickupDialog", "Usando ocorrência padrão: " + defaultOccurrence.getName() + " (ID: " + defaultOccurrence.getId() + ", ReferenceId: " + defaultOccurrence.getReferenceId() + ")");
 
-            // Finalizar com detalhes completos
-            finalizePickupWithDetails(selectedOccurrence, observation);
+            // Finalizar com detalhes completos usando a ocorrência padrão
+            finalizePickupWithDetails(defaultOccurrence, observation);
         });
 
         // Configurar propriedades do dialog
@@ -394,9 +391,21 @@ public class FinalizePickupDialog extends Dialog {
     }
 
     private void finalizePickupWithDetails(Occurrence occurrence, String observation) {
-        // Preparar dados para envio
-        String occurrenceId = (occurrence != null && occurrence.getId() != null) ? occurrence.getId() : "";
+        // Para coletas coletadas, usar sempre a ocorrência com referenceId=1
+        Occurrence defaultOccurrence = findOccurrenceByReferenceId(1);
+        String occurrenceId = (defaultOccurrence != null && defaultOccurrence.getId() != null) ? defaultOccurrence.getId() : "";
         String driverAttachmentUrl = photoBase64 != null ? "data:image/jpeg;base64," + photoBase64 : "";
+        
+        // Obter quantidade de itens coletados
+        String quantityText = editTextQuantity.getText().toString().trim();
+        Integer driverNumberPackages = null;
+        if (!quantityText.isEmpty()) {
+            try {
+                driverNumberPackages = Integer.parseInt(quantityText);
+            } catch (NumberFormatException e) {
+                Log.e("FinalizePickupDialog", "Erro ao converter quantidade: " + e.getMessage());
+            }
+        }
         
         // Logs de debug para rastrear os valores
         Log.d("FinalizePickupDialog", "=== DADOS PARA ENVIO ===");
@@ -411,12 +420,15 @@ public class FinalizePickupDialog extends Dialog {
         Log.d("FinalizePickupDialog", "driverAttachmentUrl: " + driverAttachmentUrl);
         Log.d("FinalizePickupDialog", "driverAttachmentUrl length: " + (driverAttachmentUrl != null ? driverAttachmentUrl.length() : "null"));
         
-        if (occurrence != null) {
-            Log.d("FinalizePickupDialog", "Occurrence Name: " + occurrence.getName());
-            Log.d("FinalizePickupDialog", "Occurrence ID from object: " + occurrence.getId());
+        if (defaultOccurrence != null) {
+            Log.d("FinalizePickupDialog", "Default Occurrence Name: " + defaultOccurrence.getName());
+            Log.d("FinalizePickupDialog", "Default Occurrence ID: " + defaultOccurrence.getId());
+            Log.d("FinalizePickupDialog", "Default Occurrence ReferenceId: " + defaultOccurrence.getReferenceId());
         } else {
-            Log.d("FinalizePickupDialog", "Occurrence object is null");
+            Log.d("FinalizePickupDialog", "Default occurrence (referenceId=1) not found");
         }
+        
+        Log.d("FinalizePickupDialog", "Driver Number Packages: " + driverNumberPackages);
         
         // Usar MainViewModel para finalizar
         MainActivity activity = null;
@@ -443,7 +455,8 @@ public class FinalizePickupDialog extends Dialog {
                 currentPickup, 
                 observation, 
                 occurrenceId, 
-                driverAttachmentUrl
+                driverAttachmentUrl,
+                driverNumberPackages
             );
             Log.d("FinalizePickupDialog", "Chamada do MainViewModel concluída");
         } else {
@@ -456,5 +469,26 @@ public class FinalizePickupDialog extends Dialog {
         }
         
         dismiss();
+    }
+
+    // Método para encontrar ocorrência por referenceId
+    private Occurrence findOccurrenceByReferenceId(int referenceId) {
+        Log.d("FinalizePickupDialog", "=== BUSCANDO OCORRÊNCIA COM REFERENCE ID: " + referenceId + " ===");
+        Log.d("FinalizePickupDialog", "Total de ocorrências carregadas: " + (occurrenceList != null ? occurrenceList.size() : "null"));
+        
+        if (occurrenceList != null) {
+            for (int i = 0; i < occurrenceList.size(); i++) {
+                Occurrence occurrence = occurrenceList.get(i);
+                Log.d("FinalizePickupDialog", "Ocorrência [" + i + "]: Nome=" + occurrence.getName() + ", ID=" + occurrence.getId() + ", ReferenceId=" + occurrence.getReferenceId());
+                
+                if (occurrence.getReferenceId() != null && occurrence.getReferenceId().equals(String.valueOf(referenceId))) {
+                    Log.d("FinalizePickupDialog", "✅ ENCONTRADA! Ocorrência com referenceId=" + referenceId + ": " + occurrence.getName());
+                    return occurrence;
+                }
+            }
+        }
+        
+        Log.d("FinalizePickupDialog", "❌ NÃO ENCONTRADA! Nenhuma ocorrência com referenceId=" + referenceId);
+        return null;
     }
 }

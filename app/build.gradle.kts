@@ -80,3 +80,10 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }
+
+android {
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+}

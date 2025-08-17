@@ -453,7 +453,7 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
 
         // O resto dos observers continua exatamente o mesmo
         mainViewModel.progressPercentage.observe(this, percentage -> {
-            progressIndicator.setProgress(percentage, true);
+            progressIndicator.setProgress(percentage);
             textViewProgressPercentage.setText(String.format("%d%%", percentage));
         });
 

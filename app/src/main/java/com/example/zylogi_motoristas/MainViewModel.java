@@ -132,7 +132,7 @@ public class MainViewModel extends AndroidViewModel {
     }
 
     // Método para finalização com detalhes do motorista
-    public void finalizePickupWithDetails(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl) {
+    public void finalizePickupWithDetails(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, Integer driverNumberPackages) {
         _isLoading.setValue(true);
         
         // Logs de debug
@@ -148,14 +148,14 @@ public class MainViewModel extends AndroidViewModel {
         
         if (hasPhoto) {
             android.util.Log.d("MainViewModel", "Usando multipart/form-data para envio com foto");
-            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "COMPLETED");
+            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "COMPLETED", driverNumberPackages);
         } else {
             android.util.Log.d("MainViewModel", "Usando JSON para envio sem foto");
-            finalizeWithJson(pickup, observationDriver, occurrenceId, "COMPLETED");
+            finalizeWithJson(pickup, observationDriver, occurrenceId, "COMPLETED", driverNumberPackages);
         }
     }
     
-    private void finalizeWithMultipart(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, String status) {
+    private void finalizeWithMultipart(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, String status, Integer driverNumberPackages) {
         try {
             // Criar RequestBody para campos de texto seguindo as melhores práticas
             RequestBody statusBody = RequestBody.create(status, MediaType.parse("text/plain"));
@@ -165,6 +165,12 @@ public class MainViewModel extends AndroidViewModel {
             // Adicionar data e hora de finalização (horário local do Brasil)
             String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
             RequestBody completionDateBody = RequestBody.create(completionDate, MediaType.parse("text/plain"));
+            
+            // Adicionar quantidade de itens coletados
+            RequestBody driverNumberPackagesBody = null;
+            if (driverNumberPackages != null) {
+                driverNumberPackagesBody = RequestBody.create(driverNumberPackages.toString(), MediaType.parse("text/plain"));
+            }
             
             // Processar a imagem Base64
             MultipartBody.Part imagePart = null;
@@ -242,7 +248,7 @@ public class MainViewModel extends AndroidViewModel {
             }
             
             // Fazer a requisição multipart
-            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, imagePart)
+            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, driverNumberPackagesBody, imagePart)
                     .enqueue(new Callback<Pickup>() {
                         @Override
                         public void onResponse(Call<Pickup> call, Response<Pickup> response) {
@@ -284,7 +290,7 @@ public class MainViewModel extends AndroidViewModel {
         }
     }
     
-    private void finalizeWithJson(Pickup pickup, String observationDriver, String occurrenceId, String status) {
+    private void finalizeWithJson(Pickup pickup, String observationDriver, String occurrenceId, String status, Integer driverNumberPackages) {
         // Criar Map com todos os dados do motorista
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", status);
@@ -298,6 +304,9 @@ public class MainViewModel extends AndroidViewModel {
         }
         if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
             updates.put("occurrenceId", occurrenceId);
+        }
+        if (driverNumberPackages != null) {
+            updates.put("driverNumberPackages", driverNumberPackages);
         }
         
         // Enviar apenas os campos que têm valores
@@ -341,10 +350,10 @@ public class MainViewModel extends AndroidViewModel {
         
         if (hasPhoto) {
             android.util.Log.d("MainViewModel", "Usando multipart/form-data para envio com foto (NOT_COMPLETED)");
-            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "NOT_COMPLETED");
+            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "NOT_COMPLETED", null);
         } else {
             android.util.Log.d("MainViewModel", "Usando JSON para envio sem foto (NOT_COMPLETED)");
-            finalizeWithJson(pickup, observationDriver, occurrenceId, "NOT_COMPLETED");
+            finalizeWithJson(pickup, observationDriver, occurrenceId, "NOT_COMPLETED", null);
         }
     }
 

@@ -31,6 +31,7 @@
 
     <!-- Label Ocorrência -->
     <TextView
+        android:id="@+id/labelOccurrence"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Ocorrência"
@@ -47,6 +48,30 @@
         android:layout_marginBottom="16dp"
         android:background="@drawable/spinner_background"
         android:padding="12dp" />
+
+    <!-- Label Quantidade de Itens -->
+    <TextView
+        android:id="@+id/labelQuantity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Qt. Items coletados"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <!-- Campo de Quantidade de Itens -->
+    <EditText
+        android:id="@+id/editTextQuantity"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Digite a quantidade de itens coletados"
+        android:inputType="number"
+        android:padding="12dp"
+        android:background="@drawable/edittext_background"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone" />
 
     <!-- Label Observação -->
     <TextView

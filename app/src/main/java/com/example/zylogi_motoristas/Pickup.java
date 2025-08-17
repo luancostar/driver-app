@@ -40,6 +40,10 @@ public class Pickup {
     @SerializedName("vehicleId")
     private String vehicleId;
 
+    // ADICIONADO: Campo para quantidade de itens coletados pelo motorista
+    @SerializedName("driverNumberPackages")
+    private Integer driverNumberPackages;
+
     // Getters
     public boolean isFragile() { return isFragile; }
     public String getObservation() { return observation; }
@@ -74,5 +78,10 @@ public class Pickup {
     // ADICIONADO: Getter para vehicleId
     public String getVehicleId() {
         return vehicleId;
+    }
+
+    // ADICIONADO: Getter para driverNumberPackages
+    public Integer getDriverNumberPackages() {
+        return driverNumberPackages;
     }
 }
