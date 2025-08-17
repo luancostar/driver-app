@@ -22,6 +22,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
     public interface OnPickupActionClickListener {
         void onCollectedClick(Pickup pickup);
         void onNotCollectedClick(Pickup pickup);
+        void onObservationClick(Pickup pickup);
     }
 
     // 2. O CONSTRUTOR DEVE RECEBER O LISTENER
@@ -55,6 +56,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
     class PickupViewHolder extends RecyclerView.ViewHolder {
         private TextView companyName, contactName, phone, address, scheduledDate, pickupId;
         private MaterialButton buttonCollected, buttonNotCollected;
+        private android.widget.ImageView iconObservation;
 
         public PickupViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -66,6 +68,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
             scheduledDate = itemView.findViewById(R.id.textViewScheduledDate);
             buttonCollected = itemView.findViewById(R.id.buttonCollected);
             buttonNotCollected = itemView.findViewById(R.id.buttonNotCollected);
+            iconObservation = itemView.findViewById(R.id.iconObservation);
         }
 
         public void bind(final Pickup pickup, final OnPickupActionClickListener listener) {
@@ -121,6 +124,14 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
             } else {
                 scheduledDate.setText("📅 Agendado para: Hoje");
                 scheduledDate.setVisibility(View.VISIBLE);
+            }
+
+            // Configura a visibilidade e clique do ícone de observação
+            if (pickup.getObservation() != null && !pickup.getObservation().trim().isEmpty()) {
+                iconObservation.setVisibility(View.VISIBLE);
+                iconObservation.setOnClickListener(v -> listener.onObservationClick(pickup));
+            } else {
+                iconObservation.setVisibility(View.GONE);
             }
 
             // Configura os cliques dos botões para chamar o listener

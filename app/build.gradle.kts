@@ -27,7 +27,7 @@ android {
             // buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
             // Endpoint local para desenvolvimento (usando IP direto)
             // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/\"")
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.13:3001/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.12:3001/\"")
         }
         // ADICIONADO: Bloco para o modo de desenvolvimento
         debug {
@@ -35,7 +35,7 @@ android {
             // buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
             // Endpoint local para desenvolvimento (usando IP direto)
             // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/\"")
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.13:3001/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.12:3001/\"")
         }
     }
     compileOptions {

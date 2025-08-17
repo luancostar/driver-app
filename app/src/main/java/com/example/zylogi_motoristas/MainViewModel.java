@@ -157,14 +157,14 @@ public class MainViewModel extends AndroidViewModel {
     
     private void finalizeWithMultipart(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, String status) {
         try {
-            // Criar RequestBody para campos de texto
-            RequestBody statusBody = RequestBody.create(MediaType.parse("text/plain"), status);
-            RequestBody observationBody = RequestBody.create(MediaType.parse("text/plain"), observationDriver != null ? observationDriver : "");
-            RequestBody occurrenceIdBody = RequestBody.create(MediaType.parse("text/plain"), occurrenceId != null ? occurrenceId : "");
+            // Criar RequestBody para campos de texto seguindo as melhores práticas
+            RequestBody statusBody = RequestBody.create(status, MediaType.parse("text/plain"));
+            RequestBody observationBody = RequestBody.create(observationDriver != null ? observationDriver : "", MediaType.parse("text/plain"));
+            RequestBody occurrenceIdBody = RequestBody.create(occurrenceId != null ? occurrenceId : "", MediaType.parse("text/plain"));
             
             // Adicionar data e hora de finalização (horário local do Brasil)
             String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
-            RequestBody completionDateBody = RequestBody.create(MediaType.parse("text/plain"), completionDate);
+            RequestBody completionDateBody = RequestBody.create(completionDate, MediaType.parse("text/plain"));
             
             // Processar a imagem Base64
             MultipartBody.Part imagePart = null;
@@ -199,8 +199,11 @@ public class MainViewModel extends AndroidViewModel {
                     android.util.Log.d("MainViewModel", "Tamanho original (JPEG): " + originalImageBytes.length + " bytes");
                     android.util.Log.d("MainViewModel", "Tamanho convertido (PNG): " + pngImageBytes.length + " bytes");
                     
-                    // Criar MultipartBody.Part com PNG
-                    RequestBody imageBody = RequestBody.create(MediaType.parse("image/png"), pngImageBytes);
+                    // Criar MultipartBody.Part com PNG seguindo as melhores práticas
+                    // Garantir que o tipo MIME está correto
+                    String mimeType = "image/png";
+                    RequestBody imageBody = RequestBody.create(pngImageBytes, MediaType.parse(mimeType));
+                    // A chave "image" deve corresponder exatamente ao que o backend espera
                     imagePart = MultipartBody.Part.createFormData("image", "driver_photo.png", imageBody);
                     
                     android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'image' - Tamanho: " + pngImageBytes.length + " bytes");

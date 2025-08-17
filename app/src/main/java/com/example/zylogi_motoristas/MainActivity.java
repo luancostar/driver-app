@@ -18,7 +18,6 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -490,6 +489,11 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
         showFinalizePickupNotCompletedDialog(pickup);
     }
 
+    @Override
+    public void onObservationClick(Pickup pickup) {
+        showObservationDialog(pickup);
+    }
+
     // 4. Método que abre o modal de finalização com ocorrência e observação
     private void showFinalizePickupDialog(final Pickup pickup) {
         FinalizePickupDialog dialog = new FinalizePickupDialog(this, pickup, 
@@ -719,6 +723,19 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 new String[]{permissionToRequest}, 
                 STORAGE_PERMISSION_REQUEST_CODE);
         }
+    }
+
+    private void showObservationDialog(Pickup pickup) {
+        if (pickup.getObservation() == null || pickup.getObservation().trim().isEmpty()) {
+            Toast.makeText(this, "Nenhuma observação disponível", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Observação")
+                .setMessage(pickup.getObservation())
+                .setPositiveButton("Fechar", null)
+                .show();
     }
 
     public MainViewModel getMainViewModel() {
