@@ -260,7 +260,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
                 JWT jwt = new JWT(token);
                 String driverName = jwt.getClaim("name").asString();
                 if (driverName != null && !driverName.isEmpty()) {
-                    textWelcome.setText("Bem-vindo, " + driverName);
+                    // Extrair apenas o primeiro nome
+                    String firstName = driverName.split(" ")[0];
+                    textWelcome.setText("Bem-vindo, " + firstName + " \uD83D\uDE4B\u200D♂\uFE0F");
                 } else {
                     textWelcome.setText("Bem-vindo, Motorista");
                 }
@@ -284,12 +286,10 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     }
     
     private void updateDateTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-        // Corrigir fuso horário subtraindo 3 horas
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.HOUR_OF_DAY, -3);
-        String currentDateTime = sdf.format(calendar.getTime());
-        textDateTime.setText(currentDateTime);
+        String currentDate = sdf.format(calendar.getTime());
+        textDateTime.setText(currentDate);
     }
     
     private void updateLocation() {
