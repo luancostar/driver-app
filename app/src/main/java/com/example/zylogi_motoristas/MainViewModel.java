@@ -209,10 +209,10 @@ public class MainViewModel extends AndroidViewModel {
                     // Garantir que o tipo MIME está correto
                     String mimeType = "image/png";
                     RequestBody imageBody = RequestBody.create(pngImageBytes, MediaType.parse(mimeType));
-                    // A chave "image" deve corresponder exatamente ao que o backend espera
-                    imagePart = MultipartBody.Part.createFormData("image", "driver_photo.png", imageBody);
+                    // A chave "driverAttachmentUrl" deve corresponder exatamente ao que o backend espera
+                    imagePart = MultipartBody.Part.createFormData("driverAttachmentUrl", "driver_photo.png", imageBody);
                     
-                    android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'image' - Tamanho: " + pngImageBytes.length + " bytes");
+                    android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'driverAttachmentUrl' - Tamanho: " + pngImageBytes.length + " bytes");
                     android.util.Log.d("MainViewModel", "Content-Type: image/png");
                     android.util.Log.d("MainViewModel", "Filename: driver_photo.png");
                     android.util.Log.d("MainViewModel", "🔄 Enviando como PNG (conversão de JPEG para PNG)");
@@ -233,7 +233,7 @@ public class MainViewModel extends AndroidViewModel {
             android.util.Log.d("MainViewModel", "📊 Status: " + status);
             android.util.Log.d("MainViewModel", "📝 Observation: " + (observationDriver != null ? observationDriver : "null"));
             android.util.Log.d("MainViewModel", "🔢 Occurrence ID: " + (occurrenceId != null ? occurrenceId : "null"));
-            android.util.Log.d("MainViewModel", "📷 Image Part: " + (imagePart != null ? "Presente (MultipartBody.Part)" : "null"));
+            android.util.Log.d("MainViewModel", "📷 driverAttachmentUrl Part: " + (imagePart != null ? "Presente (MultipartBody.Part)" : "null"));
             
             // Log detalhado de cada campo da requisição
             android.util.Log.d("MainViewModel", "=== CAMPOS DA REQUISIÇÃO MULTIPART ===");
@@ -242,7 +242,7 @@ public class MainViewModel extends AndroidViewModel {
                 android.util.Log.d("MainViewModel", "Campo 'observationDriver': " + (observationDriver != null ? observationDriver : "vazio") + " (" + observationBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'occurrenceId': " + (occurrenceId != null ? occurrenceId : "vazio") + " (" + occurrenceIdBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'completionDate': " + completionDate + " (" + completionDateBody.contentLength() + " bytes)");
-                android.util.Log.d("MainViewModel", "Campo 'image': " + (imagePart != null ? "ARQUIVO PRESENTE (MultipartBody.Part)" : "❌ NULO - SEM ARQUIVO"));
+                android.util.Log.d("MainViewModel", "Campo 'driverAttachmentUrl': " + (imagePart != null ? "ARQUIVO PRESENTE (MultipartBody.Part)" : "❌ NULO - SEM ARQUIVO"));
             } catch (Exception e) {
                 android.util.Log.e("MainViewModel", "Erro ao obter tamanhos dos campos: " + e.getMessage());
             }

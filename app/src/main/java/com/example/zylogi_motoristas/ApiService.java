@@ -49,6 +49,6 @@ public interface ApiService {
             @Part("occurrenceId") RequestBody occurrenceId,
             @Part("completionDate") RequestBody completionDate,
             @Part("driverNumberPackages") RequestBody driverNumberPackages,
-            @Part MultipartBody.Part image
+            @Part MultipartBody.Part driverAttachmentUrl
     );
 }
