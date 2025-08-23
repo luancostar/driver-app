@@ -374,7 +374,7 @@ public class FinalizePickupDialog extends Dialog {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             photo.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
-            photoBase64 = Base64.encodeToString(byteArray, Base64.DEFAULT);
+            photoBase64 = Base64.encodeToString(byteArray, Base64.NO_WRAP);
             
             Log.d("FinalizePickupDialog", "Foto da galeria convertida para Base64");
             Log.d("FinalizePickupDialog", "Tamanho do array de bytes: " + byteArray.length);
