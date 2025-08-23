@@ -105,6 +105,9 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
             setupTopBar();
 
             mainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
+            
+            // Inicializar SyncManager para garantir sincronização offline
+            com.example.zylogi_motoristas.offline.SyncManager.getInstance(this);
 
             setupListeners();
             observeViewModel();
@@ -320,31 +323,50 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     }
     
     private void getNeighborhoodName(double latitude, double longitude) {
-        try {
-            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-            
-            if (addresses != null && !addresses.isEmpty()) {
-                Address address = addresses.get(0);
-                String neighborhood = address.getSubLocality(); // Bairro
+        // Executar geocoding em thread separada para evitar bloqueio da UI
+        new Thread(() -> {
+            try {
+                Geocoder geocoder = new Geocoder(this, Locale.getDefault());
                 
-                if (neighborhood != null && !neighborhood.isEmpty()) {
-                    textLocation.setText("📍 " + neighborhood);
-                } else {
-                    // Se não conseguir o bairro, tenta a cidade
-                    String city = address.getLocality();
-                    if (city != null && !city.isEmpty()) {
-                        textLocation.setText("📍 " + city);
-                    } else {
-                        textLocation.setText("📍 Localização encontrada");
-                    }
+                // Verificar se o Geocoder está disponível (requer conexão)
+                if (!Geocoder.isPresent()) {
+                    runOnUiThread(() -> textLocation.setText("📍 Localização offline"));
+                    return;
                 }
-            } else {
-                textLocation.setText("📍 Endereço não encontrado");
+                
+                List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+                
+                runOnUiThread(() -> {
+                    if (addresses != null && !addresses.isEmpty()) {
+                        Address address = addresses.get(0);
+                        String neighborhood = address.getSubLocality(); // Bairro
+                        
+                        if (neighborhood != null && !neighborhood.isEmpty()) {
+                            textLocation.setText("📍 " + neighborhood);
+                        } else {
+                            // Se não conseguir o bairro, tenta a cidade
+                            String city = address.getLocality();
+                            if (city != null && !city.isEmpty()) {
+                                textLocation.setText("📍 " + city);
+                            } else {
+                                textLocation.setText("📍 Localização encontrada");
+                            }
+                        }
+                    } else {
+                        textLocation.setText("📍 Endereço não encontrado");
+                    }
+                });
+                
+            } catch (java.io.IOException e) {
+                // Erro de rede - sem conexão com a internet
+                Log.w("MainActivity", "Geocoding falhou - sem conexão: " + e.getMessage());
+                runOnUiThread(() -> textLocation.setText("📍 Localização offline"));
+            } catch (Exception e) {
+                // Outros erros
+                Log.e("MainActivity", "Erro no geocoding: " + e.getMessage(), e);
+                runOnUiThread(() -> textLocation.setText("📍 Erro na localização"));
             }
-        } catch (Exception e) {
-            textLocation.setText("📍 Erro ao obter endereço");
-        }
+        }).start();
     }
     
     private void performLogout() {

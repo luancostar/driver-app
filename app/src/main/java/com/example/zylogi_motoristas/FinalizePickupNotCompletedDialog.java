@@ -126,9 +126,9 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
                 selectedOccurrence = new Occurrence();
                 selectedOccurrence.setName(selectedName);
                 selectedOccurrence.setOccurrenceNumber(selectedPosition); // Usar a posição como número temporário
-                // Para fallback, vamos usar um ID baseado na posição
-                selectedOccurrence.setId("fallback_" + selectedPosition);
-                Log.d("FinalizePickupNotCompletedDialog", "Usando fallback: " + selectedName + " (ID temporário: fallback_" + selectedPosition + ")");
+                // Para fallback, não definir ID para evitar erro de UUID na API
+                selectedOccurrence.setId(null);
+                Log.d("FinalizePickupNotCompletedDialog", "Usando fallback: " + selectedName + " (sem ID para evitar erro de UUID)");
             }
 
             // Finalizar com detalhes completos

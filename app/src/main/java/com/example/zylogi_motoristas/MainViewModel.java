@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors; // Importe
+// Removido import java.util.stream.Collectors - não compatível com Android mais antigo
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -27,6 +27,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+
+// Imports para funcionalidade offline
+import com.example.zylogi_motoristas.offline.OfflineRepository;
+import com.example.zylogi_motoristas.offline.ConnectivityManager;
+import com.example.zylogi_motoristas.offline.SyncManager;
 
 public class MainViewModel extends AndroidViewModel {
 
@@ -50,60 +55,275 @@ public class MainViewModel extends AndroidViewModel {
 
     private AuthSessionManager authSessionManager;
     private ApiService apiService;
+    
+    // Componentes offline
+    private OfflineRepository offlineRepository;
+    private ConnectivityManager connectivityManager;
+    private SyncManager syncManager;
 
     public MainViewModel(@NonNull Application application) {
         super(application);
         authSessionManager = new AuthSessionManager(application);
         apiService = RetrofitClient.getClient(application).create(ApiService.class);
+        
+        // Inicializa componentes offline
+        offlineRepository = OfflineRepository.getInstance(application);
+        connectivityManager = ConnectivityManager.getInstance(application);
+        syncManager = SyncManager.getInstance(application);
+        
+        // Registra listener para atualizar a tela após sincronização
+        setupSyncListener();
+    }
+    
+    private void setupSyncListener() {
+        syncManager.addSyncListener(new SyncManager.SyncListener() {
+            @Override
+            public void onSyncStarted() {
+                // Não precisa fazer nada no início da sincronização
+            }
+            
+            @Override
+            public void onSyncCompleted(int syncedCount, int failedCount) {
+                if (syncedCount > 0) {
+                    android.util.Log.i("MainViewModel", "Sincronização concluída com " + syncedCount + " operações. Atualizando tela.");
+                    // Atualiza a tela após sincronização bem-sucedida
+                    fetchPickups();
+                }
+            }
+            
+            @Override
+            public void onSyncFailed(String error) {
+                android.util.Log.w("MainViewModel", "Sincronização falhou: " + error);
+            }
+        });
+    }
+
+    private void saveOperationOffline(Pickup pickup, String operationType, String observationDriver, String occurrenceId, String driverAttachmentUrl, Integer driverNumberPackages) {
+        // Extrair apenas o Base64 da string data:image/jpeg;base64,
+        String photoBase64 = null;
+        if (driverAttachmentUrl != null && driverAttachmentUrl.startsWith("data:image/")) {
+            int commaIndex = driverAttachmentUrl.indexOf(",");
+            if (commaIndex != -1 && commaIndex < driverAttachmentUrl.length() - 1) {
+                photoBase64 = driverAttachmentUrl.substring(commaIndex + 1);
+            }
+        }
+        
+        offlineRepository.saveOperation(
+                pickup.getId(),
+                operationType,
+                observationDriver,
+                occurrenceId,
+                photoBase64,
+                driverNumberPackages,
+                new OfflineRepository.OperationSaveCallback() {
+                    @Override
+                public void onSuccess(long operationId) {
+                android.util.Log.i("MainViewModel", "Operação salva offline com sucesso");
+                _isLoading.postValue(false);
+                _updateResult.postValue("Operação salva offline. Será sincronizada quando houver conexão.");
+                    
+                    // Atualizar a lista de coletas
+                    fetchPickups();
+                    
+                    // Tentar sincronizar imediatamente
+                    syncManager.syncNow();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("MainViewModel", "Erro ao salvar operação offline: " + error);
+                    _isLoading.postValue(false);
+                    _updateResult.postValue("Erro ao salvar operação offline: " + error);
+                }
+            }
+        );
     }
 
     public void fetchPickups() {
-        _isLoading.setValue(true);
-        String token = authSessionManager.getAuthToken();
-        if (token == null) { /* ... */ return; }
-        JWT jwt = new JWT(token);
-        String driverId = jwt.getSubject();
-        if (driverId == null) { /* ... */ return; }
+        try {
+            _isLoading.postValue(true);
+            String token = authSessionManager.getAuthToken();
+            if (token == null) { 
+                _error.postValue("Token de autenticação não encontrado");
+                _isLoading.postValue(false);
+                return; 
+            }
+            
+            JWT jwt = new JWT(token);
+            String driverId = jwt.getSubject();
+            if (driverId == null) { 
+                _error.postValue("ID do motorista não encontrado");
+                _isLoading.postValue(false);
+                return; 
+            }
 
-        String today = LocalDate.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String today = LocalDate.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-        // A chamada da API continua buscando TODAS as coletas do dia
-        apiService.getPickups(driverId, today, today).enqueue(new Callback<List<Pickup>>() {
-            @Override
-            public void onResponse(Call<List<Pickup>> call, Response<List<Pickup>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    List<Pickup> allPickupsFromAPI = response.body();
+            // Tenta buscar da API primeiro
+            try {
+                apiService.getPickups(driverId, today, today).enqueue(new Callback<List<Pickup>>() {
+                    @Override
+                    public void onResponse(Call<List<Pickup>> call, Response<List<Pickup>> response) {
+                        try {
+                            if (response.isSuccessful() && response.body() != null) {
+                                List<Pickup> allPickupsFromAPI = response.body();
 
-                    // NOVA FILTRAGEM: Primeiro filtra por data de agendamento para hoje
-                    List<Pickup> todayScheduledPickups = allPickupsFromAPI.stream()
-                            .filter(p -> isScheduledForToday(p.getScheduledDate()))
-                            .collect(Collectors.toList());
+                                // Filtra por data de agendamento para hoje com tratamento de erro
+                                List<Pickup> todayScheduledPickups = new java.util.ArrayList<>();
+                                for (Pickup pickup : allPickupsFromAPI) {
+                                    try {
+                                        if (pickup != null && isScheduledForToday(pickup.getScheduledDate())) {
+                                            todayScheduledPickups.add(pickup);
+                                        }
+                                    } catch (Exception e) {
+                                        android.util.Log.w("MainViewModel", "Erro ao filtrar coleta da API: " + e.getMessage());
+                                    }
+                                }
 
-                    // Depois filtra para mostrar apenas as pendentes no carrossel
-                    List<Pickup> pendingPickups = todayScheduledPickups.stream()
-                            .filter(p -> "PENDING".equalsIgnoreCase(p.getStatus()))
-                            .collect(Collectors.toList());
-                    _openPickups.setValue(pendingPickups);
+                                // Salva as coletas no cache para uso offline
+                                try {
+                                    offlineRepository.cachePickups(todayScheduledPickups, driverId, new OfflineRepository.PickupCacheCallback() {
+                                        @Override
+                                        public void onSuccess(int count) {
+                                            android.util.Log.d("MainViewModel", "Coletas salvas no cache: " + count);
+                                        }
 
-                    // Calcula o progresso com base nas coletas agendadas para hoje
-                    calculateProgress(todayScheduledPickups);
-                } else {
-                    _error.setValue("Erro ao buscar coletas: " + response.code());
+                                        @Override
+                                        public void onError(String error) {
+                                            android.util.Log.e("MainViewModel", "Erro ao salvar no cache: " + error);
+                                        }
+                                    });
+                                } catch (Exception e) {
+                                    android.util.Log.w("MainViewModel", "Erro ao salvar cache: " + e.getMessage());
+                                }
+
+                                // Filtra para mostrar apenas as pendentes no carrossel
+                                List<Pickup> pendingPickups = new java.util.ArrayList<>();
+                                for (Pickup pickup : todayScheduledPickups) {
+                                    try {
+                                        if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
+                                            pendingPickups.add(pickup);
+                                        }
+                                    } catch (Exception e) {
+                                        android.util.Log.w("MainViewModel", "Erro ao filtrar coleta pendente da API: " + e.getMessage());
+                                    }
+                                }
+                                _openPickups.postValue(pendingPickups);
+
+                                // Calcula o progresso com base em TODAS as coletas do dia
+                                calculateProgress(todayScheduledPickups);
+                            } else {
+                                // Se a API falhar, tenta buscar do cache
+                                android.util.Log.w("MainViewModel", "Resposta da API não bem-sucedida, tentando cache");
+                                loadPickupsFromCache(driverId, today);
+                                return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("MainViewModel", "Erro ao processar resposta da API: " + e.getMessage(), e);
+                            loadPickupsFromCache(driverId, today);
+                            return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
+                        }
+                        _isLoading.postValue(false);
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Pickup>> call, Throwable t) {
+                        android.util.Log.w("MainViewModel", "Falha na API, tentando cache: " + t.getMessage());
+                        // Se não conseguir conectar na API, busca do cache
+                        loadPickupsFromCache(driverId, today);
+                    }
+                });
+            } catch (Exception e) {
+                android.util.Log.e("MainViewModel", "Erro ao fazer chamada da API: " + e.getMessage(), e);
+                loadPickupsFromCache(driverId, today);
+            }
+        } catch (Exception e) {
+            android.util.Log.e("MainViewModel", "Erro crítico em fetchPickups: " + e.getMessage(), e);
+            _error.postValue("Erro crítico ao buscar coletas");
+            _openPickups.postValue(new java.util.ArrayList<>());
+            calculateProgress(new java.util.ArrayList<>());
+            _isLoading.postValue(false);
+        }
+    }
+    
+    /**
+     * Carrega coletas do cache local quando a API não está disponível
+     */
+    private void loadPickupsFromCache(String driverId, String date) {
+        try {
+            offlineRepository.getCachedPickups(driverId, date, new OfflineRepository.PickupListCallback() {
+                @Override
+                public void onSuccess(List<Pickup> cachedPickups) {
+                    try {
+                        if (cachedPickups != null && !cachedPickups.isEmpty()) {
+                            // Filtra coletas agendadas para hoje com tratamento de erro
+                            List<Pickup> todayScheduledPickups = new java.util.ArrayList<>();
+                            for (Pickup pickup : cachedPickups) {
+                                try {
+                                    if (pickup != null && isScheduledForToday(pickup.getScheduledDate())) {
+                                        todayScheduledPickups.add(pickup);
+                                    }
+                                } catch (Exception e) {
+                                    android.util.Log.w("MainViewModel", "Erro ao filtrar coleta: " + e.getMessage());
+                                }
+                            }
+
+                            // Filtra para mostrar apenas as pendentes no carrossel
+                            List<Pickup> pendingPickups = new java.util.ArrayList<>();
+                            for (Pickup pickup : todayScheduledPickups) {
+                                try {
+                                    if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
+                                        pendingPickups.add(pickup);
+                                    }
+                                } catch (Exception e) {
+                                    android.util.Log.w("MainViewModel", "Erro ao filtrar coleta pendente: " + e.getMessage());
+                                }
+                            }
+                            
+                            // Usar postValue() para threads de background
+                            _openPickups.postValue(pendingPickups);
+                            calculateProgress(todayScheduledPickups);
+                            
+                            // Informa que está usando dados offline
+                            _error.postValue("Usando dados offline - " + cachedPickups.size() + " coletas carregadas");
+                            android.util.Log.i("MainViewModel", "Coletas carregadas do cache: " + cachedPickups.size());
+                        } else {
+                            _error.postValue("Sem conexão e nenhuma coleta armazenada offline");
+                            _openPickups.postValue(new java.util.ArrayList<>());
+                            calculateProgress(new java.util.ArrayList<>());
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("MainViewModel", "Erro ao processar coletas do cache", e);
+                        _error.postValue("Erro ao processar dados offline: " + e.getMessage());
+                        _openPickups.postValue(new java.util.ArrayList<>());
+                        calculateProgress(new java.util.ArrayList<>());
+                    } finally {
+                        _isLoading.postValue(false);
+                    }
                 }
-                _isLoading.setValue(false);
-            }
-            @Override
-            public void onFailure(Call<List<Pickup>> call, Throwable t) {
-                _error.setValue("Falha na rede: " + t.getMessage());
-                _isLoading.setValue(false);
-            }
-        });
+
+                @Override
+                public void onError(String error) {
+                    android.util.Log.e("MainViewModel", "Erro ao carregar do cache: " + error);
+                    _error.postValue("Erro ao carregar dados offline: " + error);
+                    _openPickups.postValue(new java.util.ArrayList<>());
+                    calculateProgress(new java.util.ArrayList<>());
+                    _isLoading.postValue(false);
+                }
+            });
+        } catch (Exception e) {
+            android.util.Log.e("MainViewModel", "Erro crítico ao acessar cache", e);
+            _error.postValue("Erro crítico ao acessar dados offline");
+            _openPickups.postValue(new java.util.ArrayList<>());
+            calculateProgress(new java.util.ArrayList<>());
+            _isLoading.postValue(false);
+        }
     }
 
     // O método de finalização continua o mesmo, pois ele chama fetchPickups() no sucesso,
     // o que já dispara a nova filtragem e cálculo de progresso.
     public void finalizePickup(String pickupId, String status) {
-        _isLoading.setValue(true);
+        _isLoading.postValue(true);
         // Para chamadas simples, enviar apenas o status
         Map<String, Object> updates = new HashMap<>();
         updates.put("status", status);
@@ -116,24 +336,38 @@ public class MainViewModel extends AndroidViewModel {
             @Override
             public void onResponse(Call<Pickup> call, Response<Pickup> response) {
                 if (response.isSuccessful()) {
-                    _updateResult.setValue("Coleta atualizada com sucesso!");
+                    _updateResult.postValue("Coleta atualizada com sucesso!");
+                    
+                    // Atualiza o status no cache local
+                    offlineRepository.updateCachedPickupStatus(pickupId, status, new OfflineRepository.OperationCallback() {
+                        @Override
+                        public void onSuccess() {
+                            android.util.Log.d("MainViewModel", "Status da coleta atualizado no cache: " + pickupId);
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            android.util.Log.e("MainViewModel", "Erro ao atualizar cache: " + error);
+                        }
+                    });
+                    
                     fetchPickups(); // ESSENCIAL: Busca os dados atualizados do servidor
                 } else {
-                    _updateResult.setValue("Falha ao atualizar a coleta: " + response.code());
-                    _isLoading.setValue(false);
+                    _updateResult.postValue("Falha ao atualizar a coleta: " + response.code());
+                    _isLoading.postValue(false);
                 }
             }
             @Override
             public void onFailure(Call<Pickup> call, Throwable t) {
-                _updateResult.setValue("Erro de conexão: " + t.getMessage());
-                _isLoading.setValue(false);
+                _updateResult.postValue("Erro de conexão: " + t.getMessage());
+                _isLoading.postValue(false);
             }
         });
     }
 
     // Método para finalização com detalhes do motorista
     public void finalizePickupWithDetails(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl, Integer driverNumberPackages) {
-        _isLoading.setValue(true);
+        _isLoading.postValue(true);
         
         // Logs de debug
         android.util.Log.d("MainViewModel", "=== FINALIZANDO COLETA COM DETALHES ===");
@@ -142,6 +376,13 @@ public class MainViewModel extends AndroidViewModel {
         android.util.Log.d("MainViewModel", "Observação: " + observationDriver);
         android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
         android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
+        
+        // Verifica conectividade
+        if (!connectivityManager.isConnected()) {
+            android.util.Log.i("MainViewModel", "Sem conectividade - salvando operação offline");
+            saveOperationOffline(pickup, "COMPLETED", observationDriver, occurrenceId, driverAttachmentUrl, driverNumberPackages);
+            return;
+        }
         
         // Verificar se há uma foto (Base64) para usar multipart
         boolean hasPhoto = driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty() && driverAttachmentUrl.startsWith("data:image/");
@@ -260,7 +501,21 @@ public class MainViewModel extends AndroidViewModel {
                                     android.util.Log.d("MainViewModel", "Status: " + updatedPickup.getStatus());
                                     android.util.Log.d("MainViewModel", "ID: " + updatedPickup.getId());
                                 }
-                                _updateResult.setValue("Coleta finalizada com sucesso!");
+                                _updateResult.postValue("Coleta finalizada com sucesso!");
+                                
+                                // Atualiza o status no cache local
+                                 offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
+                                     @Override
+                                     public void onSuccess() {
+                                         android.util.Log.d("MainViewModel", "Status da coleta atualizado no cache (multipart): " + pickup.getId());
+                                     }
+
+                                     @Override
+                                     public void onError(String error) {
+                                         android.util.Log.e("MainViewModel", "Erro ao atualizar cache (multipart): " + error);
+                                     }
+                                 });
+                                
                                 fetchPickups();
                             } else {
                                 android.util.Log.e("MainViewModel", "Falha ao finalizar coleta multipart: " + response.code());
@@ -270,23 +525,23 @@ public class MainViewModel extends AndroidViewModel {
                                 } catch (Exception e) {
                                     android.util.Log.e("MainViewModel", "Erro ao ler errorBody: " + e.getMessage());
                                 }
-                                _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
-                                _isLoading.setValue(false);
+                                _updateResult.postValue("Falha ao finalizar a coleta: " + response.code());
+                                _isLoading.postValue(false);
                             }
                         }
                         
                         @Override
                         public void onFailure(Call<Pickup> call, Throwable t) {
                             android.util.Log.e("MainViewModel", "Erro de conexão multipart: " + t.getMessage());
-                            _updateResult.setValue("Erro de conexão: " + t.getMessage());
-                            _isLoading.setValue(false);
+                            _updateResult.postValue("Erro de conexão: " + t.getMessage());
+                            _isLoading.postValue(false);
                         }
                     });
                     
         } catch (Exception e) {
             android.util.Log.e("MainViewModel", "Erro ao preparar multipart: " + e.getMessage());
-            _updateResult.setValue("Erro ao processar imagem: " + e.getMessage());
-            _isLoading.setValue(false);
+            _updateResult.postValue("Erro ao processar imagem: " + e.getMessage());
+            _isLoading.postValue(false);
         }
     }
     
@@ -316,26 +571,40 @@ public class MainViewModel extends AndroidViewModel {
                     public void onResponse(Call<Pickup> call, Response<Pickup> response) {
                         if (response.isSuccessful()) {
                             android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso usando JSON");
-                            _updateResult.setValue("Coleta finalizada com sucesso!");
+                            _updateResult.postValue("Coleta finalizada com sucesso!");
+                            
+                            // Atualiza o status no cache local
+                             offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
+                                 @Override
+                                 public void onSuccess() {
+                                     android.util.Log.d("MainViewModel", "Status da coleta atualizado no cache (JSON): " + pickup.getId());
+                                 }
+
+                                 @Override
+                                 public void onError(String error) {
+                                     android.util.Log.e("MainViewModel", "Erro ao atualizar cache (JSON): " + error);
+                                 }
+                             });
+                            
                             fetchPickups();
                         } else {
                             android.util.Log.e("MainViewModel", "Falha ao finalizar coleta JSON: " + response.code());
-                            _updateResult.setValue("Falha ao finalizar a coleta: " + response.code());
-                            _isLoading.setValue(false);
+                            _updateResult.postValue("Falha ao finalizar a coleta: " + response.code());
+                            _isLoading.postValue(false);
                         }
                     }
                     
                     @Override
                     public void onFailure(Call<Pickup> call, Throwable t) {
                         android.util.Log.e("MainViewModel", "Erro de conexão JSON: " + t.getMessage());
-                        _updateResult.setValue("Erro de conexão: " + t.getMessage());
-                        _isLoading.setValue(false);
+                        _updateResult.postValue("Erro de conexão: " + t.getMessage());
+                        _isLoading.postValue(false);
                     }
                 });
     }
 
     public void finalizePickupWithDetailsNotCompleted(Pickup pickup, String observationDriver, String occurrenceId, String driverAttachmentUrl) {
-        _isLoading.setValue(true);
+        _isLoading.postValue(true);
         
         // Logs de debug
         android.util.Log.d("MainViewModel", "=== FINALIZANDO COLETA COMO NÃO COLETADO COM DETALHES ===");
@@ -345,15 +614,25 @@ public class MainViewModel extends AndroidViewModel {
         android.util.Log.d("MainViewModel", "Occurrence ID: " + occurrenceId);
         android.util.Log.d("MainViewModel", "Driver Attachment: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "Presente" : "Ausente"));
         
+        // Para NOT_COMPLETED, driverNumberPackages deve ser 0 (nenhum item coletado)
+        Integer driverNumberPackages = 0;
+        
+        // Verifica conectividade
+        if (!connectivityManager.isConnected()) {
+            android.util.Log.i("MainViewModel", "Sem conectividade - salvando operação offline (NOT_COMPLETED)");
+            saveOperationOffline(pickup, "NOT_COMPLETED", observationDriver, occurrenceId, driverAttachmentUrl, driverNumberPackages);
+            return;
+        }
+        
         // Verificar se há uma foto (Base64) para usar multipart
         boolean hasPhoto = driverAttachmentUrl != null && !driverAttachmentUrl.trim().isEmpty() && driverAttachmentUrl.startsWith("data:image/");
         
         if (hasPhoto) {
             android.util.Log.d("MainViewModel", "Usando multipart/form-data para envio com foto (NOT_COMPLETED)");
-            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "NOT_COMPLETED", null);
+            finalizeWithMultipart(pickup, observationDriver, occurrenceId, driverAttachmentUrl, "NOT_COMPLETED", driverNumberPackages);
         } else {
             android.util.Log.d("MainViewModel", "Usando JSON para envio sem foto (NOT_COMPLETED)");
-            finalizeWithJson(pickup, observationDriver, occurrenceId, "NOT_COMPLETED", null);
+            finalizeWithJson(pickup, observationDriver, occurrenceId, "NOT_COMPLETED", driverNumberPackages);
         }
     }
 
@@ -361,22 +640,25 @@ public class MainViewModel extends AndroidViewModel {
     // O cálculo de progresso agora considera "COMPLETED" e "NOT_COMPLETED" como finalizadas
     private void calculateProgress(List<Pickup> allPickups) {
         if (allPickups == null || allPickups.isEmpty()) {
-            _progressPercentage.setValue(0);
-            _progressSummary.setValue("Nenhuma coleta para hoje");
+            _progressPercentage.postValue(0);
+            _progressSummary.postValue("Nenhuma coleta para hoje");
             return;
         }
 
         int total = allPickups.size();
         // Conta como "concluída" qualquer coleta que não esteja mais pendente
-        long concluded = allPickups.stream()
-                .filter(p -> !"PENDING".equalsIgnoreCase(p.getStatus()))
-                .count();
+        int concluded = 0;
+        for (Pickup pickup : allPickups) {
+            if (!"PENDING".equalsIgnoreCase(pickup.getStatus())) {
+                concluded++;
+            }
+        }
 
         int percentage = (int) (((double) concluded / total) * 100);
-        _progressPercentage.setValue(percentage);
+        _progressPercentage.postValue(percentage);
 
         String summary = String.format(Locale.getDefault(), "Coletas concluídas: %d de %d", concluded, total);
-        _progressSummary.setValue(summary);
+        _progressSummary.postValue(summary);
     }
 
     // NOVO MÉTODO: Verifica se uma coleta está agendada para hoje

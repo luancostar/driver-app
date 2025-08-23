@@ -134,9 +134,61 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.PickupView
                 iconObservation.setVisibility(View.GONE);
             }
 
-            // Configura os cliques dos botões para chamar o listener
-            buttonCollected.setOnClickListener(v -> listener.onCollectedClick(pickup));
-            buttonNotCollected.setOnClickListener(v -> listener.onNotCollectedClick(pickup));
+            // Verifica se há operação pendente para esta coleta
+            checkPendingOperationAndConfigureButtons(pickup, listener);
+        }
+        
+        private void checkPendingOperationAndConfigureButtons(final Pickup pickup, final OnPickupActionClickListener listener) {
+            // Obtém instância do OfflineRepository
+            com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
+                com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(itemView.getContext());
+            
+            // Verifica se há operação pendente para este pickup
+            offlineRepository.hasOperationForPickup(pickup.getId(), new com.example.zylogi_motoristas.offline.OfflineRepository.BooleanCallback() {
+                @Override
+                public void onResult(boolean hasPendingOperation) {
+                    // Executa na thread principal para atualizar a UI
+                    itemView.post(() -> {
+                        if (hasPendingOperation) {
+                            // Desabilita os botões e muda a aparência
+                            buttonCollected.setEnabled(false);
+                            buttonNotCollected.setEnabled(false);
+                            
+                            // Muda o texto dos botões para indicar que está pendente
+                            buttonCollected.setText("⏳ AGUARDANDO SINCRONIZAÇÃO");
+                            buttonNotCollected.setText("⏳ AGUARDANDO SINCRONIZAÇÃO");
+                            
+                            // Muda a cor para cinza
+                            buttonCollected.setBackgroundTintList(
+                                android.content.res.ColorStateList.valueOf(0xFF9E9E9E)); // Cinza
+                            buttonNotCollected.setBackgroundTintList(
+                                android.content.res.ColorStateList.valueOf(0xFF9E9E9E)); // Cinza
+                            
+                            // Remove os listeners de clique
+                            buttonCollected.setOnClickListener(null);
+                            buttonNotCollected.setOnClickListener(null);
+                        } else {
+                            // Habilita os botões e restaura a aparência normal
+                            buttonCollected.setEnabled(true);
+                            buttonNotCollected.setEnabled(true);
+                            
+                            // Restaura o texto original
+                            buttonCollected.setText("✅ COLETADO");
+                            buttonNotCollected.setText("❌ NÃO COLETADO");
+                            
+                            // Restaura as cores originais
+                            buttonCollected.setBackgroundTintList(
+                                android.content.res.ColorStateList.valueOf(0xFF4CAF50)); // Verde
+                            buttonNotCollected.setBackgroundTintList(
+                                android.content.res.ColorStateList.valueOf(0xFFD32F2F)); // Vermelho
+                            
+                            // Configura os cliques dos botões para chamar o listener
+                            buttonCollected.setOnClickListener(v -> listener.onCollectedClick(pickup));
+                            buttonNotCollected.setOnClickListener(v -> listener.onNotCollectedClick(pickup));
+                        }
+                    });
+                }
+            });
         }
 
         // Método auxiliar para formatar a data de agendamento

@@ -30,26 +30,26 @@ public class LoginViewModel extends AndroidViewModel { // MUDANÇA AQUI
     }
 
     public void login(String cpf, String password) {
-        _isLoading.setValue(true);
+        _isLoading.postValue(true);
 
         LoginRequest request = new LoginRequest(cpf, password);
         apiService.login(request).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    _loginResult.setValue(response.body());
+                    _loginResult.postValue(response.body());
                 } else {
-                    _error.setValue("CPF ou Senha inválidos.");
+                    _error.postValue("CPF ou Senha inválidos.");
                 }
-                _isLoading.setValue(false);
+                _isLoading.postValue(false);
             }
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 android.util.Log.e("LoginViewModel", "Erro de conexão: " + t.getMessage(), t);
                 android.util.Log.e("LoginViewModel", "URL tentativa: " + call.request().url());
-                _error.setValue("Falha na conexão: " + t.getMessage());
-                _isLoading.setValue(false);
+                _error.postValue("Falha na conexão: " + t.getMessage());
+                _isLoading.postValue(false);
             }
         });
     }

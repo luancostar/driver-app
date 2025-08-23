@@ -74,6 +74,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycleVersion")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:$lifecycleVersion")
 
+    // ADICIONADO: Dependências para funcionalidade offline
+    implementation(libs.room.runtime)
+    annotationProcessor(libs.room.compiler)
+    implementation(libs.work.runtime)
+    
+    // Conectividade de rede
+    implementation("androidx.core:core-ktx:1.12.0")
+
 
     // Dependências de teste
     testImplementation(libs.junit)
