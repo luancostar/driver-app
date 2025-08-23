@@ -139,6 +139,41 @@ public class FinalizePickupDialog extends Dialog {
     }
 
     private void loadOccurrencesFromApi() {
+        Log.d("FinalizePickupDialog", "Iniciando carregamento de ocorrências");
+        
+        // Primeiro tenta buscar do cache local
+        com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
+            com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
+        
+        offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
+            @Override
+            public void onSuccess(List<Occurrence> cachedOccurrences) {
+                if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
+                    Log.d("FinalizePickupDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
+                    occurrenceList.clear();
+                    occurrenceList.addAll(cachedOccurrences);
+                    
+                    // Log das ocorrências do cache
+                    for (Occurrence occ : cachedOccurrences) {
+                        Log.d("FinalizePickupDialog", "Ocorrência do cache: " + occ.getName() + " (ID: " + occ.getId() + ")");
+                    }
+                    
+                    setupOccurrenceSpinner();
+                } else {
+                    Log.d("FinalizePickupDialog", "Cache vazio, tentando buscar da API");
+                    loadOccurrencesFromApiDirectly();
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e("FinalizePickupDialog", "Erro ao buscar cache: " + error);
+                loadOccurrencesFromApiDirectly();
+            }
+        });
+    }
+    
+    private void loadOccurrencesFromApiDirectly() {
         Log.d("FinalizePickupDialog", "Iniciando carregamento de ocorrências da API");
         
         // Verificar se o usuário está logado
@@ -161,7 +196,7 @@ public class FinalizePickupDialog extends Dialog {
                 Log.d("FinalizePickupDialog", "Resposta recebida - Código: " + response.code());
                 if (response.isSuccessful() && response.body() != null) {
                     List<Occurrence> occurrences = response.body();
-                    Log.d("FinalizePickupDialog", "Número de ocorrências recebidas: " + occurrences.size());
+                    Log.d("FinalizePickupDialog", "Número de ocorrências recebidas da API: " + occurrences.size());
                     
                     // O endpoint /occurrences/driver já retorna apenas as ocorrências disponíveis para motoristas
                     occurrenceList.clear();
@@ -169,7 +204,7 @@ public class FinalizePickupDialog extends Dialog {
                     
                     // Log das ocorrências recebidas
                     for (Occurrence occ : occurrences) {
-                        Log.d("FinalizePickupDialog", "Ocorrência: " + occ.getName() + " (ID: " + occ.getId() + ")");
+                        Log.d("FinalizePickupDialog", "Ocorrência da API: " + occ.getName() + " (ID: " + occ.getId() + ")");
                     }
                     
                     setupOccurrenceSpinner();

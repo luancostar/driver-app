@@ -11,8 +11,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
  * Banco de dados Room para armazenamento offline
  */
 @Database(
-    entities = {PendingOperation.class, PickupEntity.class},
-    version = 2,
+    entities = {PendingOperation.class, PickupEntity.class, OccurrenceEntity.class},
+    version = 3,
     exportSchema = false
 )
 public abstract class OfflineDatabase extends RoomDatabase {
@@ -31,6 +31,11 @@ public abstract class OfflineDatabase extends RoomDatabase {
     public abstract PickupDao pickupDao();
     
     /**
+     * Obtém o DAO para ocorrências armazenadas localmente
+     */
+    public abstract OccurrenceDao occurrenceDao();
+    
+    /**
      * Obtém a instância singleton do banco de dados
      */
     public static OfflineDatabase getInstance(Context context) {
@@ -43,7 +48,7 @@ public abstract class OfflineDatabase extends RoomDatabase {
                             DATABASE_NAME
                     )
                     .addCallback(roomCallback)
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build();
                 }
             }
@@ -96,6 +101,33 @@ public abstract class OfflineDatabase extends RoomDatabase {
             database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_pickups_driver_id ON cached_pickups(driver_id)");
             database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_pickups_scheduled_date ON cached_pickups(scheduled_date)");
             database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_pickups_status ON cached_pickups(status)");
+        }
+    };
+    
+    /**
+     * Migração da versão 2 para 3 - Adiciona tabela de ocorrências em cache
+     */
+    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            // Cria a tabela para armazenar ocorrências localmente
+            database.execSQL("CREATE TABLE IF NOT EXISTS cached_occurrences (" +
+                    "id TEXT PRIMARY KEY NOT NULL, " +
+                    "reference_id TEXT, " +
+                    "occurrence_number INTEGER NOT NULL, " +
+                    "name TEXT, " +
+                    "is_client_fault INTEGER NOT NULL, " +
+                    "send_to_app INTEGER NOT NULL, " +
+                    "is_activated INTEGER NOT NULL, " +
+                    "created_at TEXT, " +
+                    "updated_at TEXT, " +
+                    "cached_at INTEGER NOT NULL" +
+                    ")");
+            
+            // Cria índices para melhor performance
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_occurrences_reference_id ON cached_occurrences(reference_id)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_occurrences_is_activated ON cached_occurrences(is_activated)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_cached_occurrences_send_to_app ON cached_occurrences(send_to_app)");
         }
     };
     

@@ -137,6 +137,32 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     }
 
     private void loadOccurrencesFromApi() {
+        // Primeiro tenta buscar do cache local
+        com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
+            com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
+        
+        offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
+            @Override
+            public void onSuccess(List<Occurrence> cachedOccurrences) {
+                if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
+                    Log.d("FinalizePickupNotCompletedDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
+                    occurrenceList = cachedOccurrences;
+                    setupOccurrenceSpinner();
+                } else {
+                    Log.d("FinalizePickupNotCompletedDialog", "Cache vazio, tentando buscar da API");
+                    loadOccurrencesFromApiDirectly();
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e("FinalizePickupNotCompletedDialog", "Erro ao buscar cache: " + error);
+                loadOccurrencesFromApiDirectly();
+            }
+        });
+    }
+    
+    private void loadOccurrencesFromApiDirectly() {
         String token = authSessionManager.getAuthToken();
         if (token != null && !token.isEmpty()) {
             apiService.getDriverOccurrences().enqueue(new Callback<List<Occurrence>>() {
@@ -144,7 +170,7 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
                 public void onResponse(Call<List<Occurrence>> call, Response<List<Occurrence>> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         occurrenceList = response.body();
-                        Log.d("FinalizePickupNotCompletedDialog", "Ocorrências carregadas: " + occurrenceList.size());
+                        Log.d("FinalizePickupNotCompletedDialog", "Ocorrências carregadas da API: " + occurrenceList.size());
                         setupOccurrenceSpinner();
                     } else {
                         Log.e("FinalizePickupNotCompletedDialog", "Falha ao carregar ocorrências: " + response.code());

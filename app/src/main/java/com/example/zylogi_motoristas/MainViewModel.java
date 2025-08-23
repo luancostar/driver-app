@@ -196,6 +196,9 @@ public class MainViewModel extends AndroidViewModel {
                                 } catch (Exception e) {
                                     android.util.Log.w("MainViewModel", "Erro ao salvar cache: " + e.getMessage());
                                 }
+                                
+                                // Carrega e armazena ocorrências no cache quando online
+                                loadAndCacheOccurrences();
 
                                 // Filtra para mostrar apenas as pendentes no carrossel
                                 List<Pickup> pendingPickups = new java.util.ArrayList<>();
@@ -678,6 +681,42 @@ public class MainViewModel extends AndroidViewModel {
         } catch (Exception e) {
             // Em caso de erro na formatação, considera como agendada para hoje
             return true;
+        }
+    }
+    
+    /**
+     * Carrega e armazena ocorrências no cache para uso offline
+     */
+    private void loadAndCacheOccurrences() {
+        try {
+            apiService.getDriverOccurrences().enqueue(new Callback<List<Occurrence>>() {
+                @Override
+                public void onResponse(Call<List<Occurrence>> call, Response<List<Occurrence>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<Occurrence> occurrences = response.body();
+                        offlineRepository.cacheOccurrences(occurrences, new OfflineRepository.OccurrenceCacheCallback() {
+                            @Override
+                            public void onSuccess(int count) {
+                                android.util.Log.d("MainViewModel", "Ocorrências salvas no cache: " + count);
+                            }
+                            
+                            @Override
+                            public void onError(String error) {
+                                android.util.Log.e("MainViewModel", "Erro ao salvar ocorrências no cache: " + error);
+                            }
+                        });
+                    } else {
+                        android.util.Log.w("MainViewModel", "Falha ao carregar ocorrências da API: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<List<Occurrence>> call, Throwable t) {
+                    android.util.Log.w("MainViewModel", "Erro ao carregar ocorrências: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            android.util.Log.e("MainViewModel", "Erro ao fazer chamada de ocorrências: " + e.getMessage());
         }
     }
 }

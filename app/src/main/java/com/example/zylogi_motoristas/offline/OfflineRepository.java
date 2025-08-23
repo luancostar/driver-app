@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.example.zylogi_motoristas.Pickup;
+import com.example.zylogi_motoristas.Occurrence;
 
 /**
  * Repositório para gerenciar operações offline
@@ -18,12 +19,14 @@ public class OfflineRepository {
     
     private final PendingOperationDao dao;
     private final PickupDao pickupDao;
+    private final OccurrenceDao occurrenceDao;
     private final ExecutorService executor;
     
     private OfflineRepository(Context context) {
         OfflineDatabase database = OfflineDatabase.getInstance(context);
         dao = database.pendingOperationDao();
         pickupDao = database.pickupDao();
+        occurrenceDao = database.occurrenceDao();
         executor = Executors.newFixedThreadPool(2);
     }
     
@@ -662,6 +665,167 @@ public class OfflineRepository {
     
     public interface PickupListCallback {
         void onSuccess(List<Pickup> pickups);
+        void onError(String error);
+    }
+    
+    // ==================== MÉTODOS DE CACHE DE OCORRÊNCIAS ====================
+    
+    /**
+     * Salva ocorrências no cache local
+     */
+    public void cacheOccurrences(List<Occurrence> occurrences, OccurrenceCacheCallback callback) {
+        executor.execute(() -> {
+            try {
+                Log.d(TAG, "=== SALVANDO OCORRÊNCIAS NO CACHE ===");
+                Log.d(TAG, "Número de ocorrências para salvar: " + occurrences.size());
+                
+                // Log detalhado de cada ocorrência antes da conversão
+                for (Occurrence occurrence : occurrences) {
+                    Log.d(TAG, "Ocorrência original - ID: " + occurrence.getId() + 
+                              ", Nome: " + occurrence.getName() + 
+                              ", ReferenceId: " + occurrence.getReferenceId());
+                }
+                
+                List<OccurrenceEntity> entities = OccurrenceConverter.toEntityList(occurrences);
+                
+                // Log detalhado de cada entidade após a conversão
+                for (OccurrenceEntity entity : entities) {
+                    Log.d(TAG, "Entidade convertida - ID: " + entity.getId() + 
+                              ", Nome: " + entity.getName() + 
+                              ", ReferenceId: " + entity.getReferenceId());
+                }
+                
+                occurrenceDao.insertOrUpdateAll(entities);
+                
+                Log.d(TAG, "Ocorrências armazenadas no cache: " + entities.size());
+                if (callback != null) {
+                    callback.onSuccess(entities.size());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao armazenar ocorrências no cache", e);
+                if (callback != null) {
+                    callback.onError("Erro ao armazenar ocorrências: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * Obtém ocorrências do cache local
+     */
+    public void getCachedOccurrences(OccurrenceListCallback callback) {
+        executor.execute(() -> {
+            try {
+                Log.d(TAG, "=== BUSCANDO OCORRÊNCIAS NO CACHE ===");
+                
+                List<OccurrenceEntity> entities = occurrenceDao.getActiveOccurrences();
+                Log.d(TAG, "Total de ocorrências encontradas no cache: " + entities.size());
+                
+                List<Occurrence> occurrences = OccurrenceConverter.fromEntityList(entities);
+                
+                // Log das ocorrências retornadas
+                for (Occurrence occurrence : occurrences) {
+                    Log.d(TAG, "Ocorrência do cache - ID: " + occurrence.getId() + 
+                              ", Nome: " + occurrence.getName() + 
+                              ", ReferenceId: " + occurrence.getReferenceId());
+                }
+                
+                if (callback != null) {
+                    callback.onSuccess(occurrences);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao buscar ocorrências do cache", e);
+                if (callback != null) {
+                    callback.onError("Erro ao buscar ocorrências: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * Obtém uma ocorrência específica por referenceId
+     */
+    public void getCachedOccurrenceByReferenceId(String referenceId, OccurrenceCallback callback) {
+        executor.execute(() -> {
+            try {
+                Log.d(TAG, "Buscando ocorrência com referenceId: " + referenceId);
+                
+                OccurrenceEntity entity = occurrenceDao.getOccurrenceByReferenceId(referenceId);
+                
+                if (entity != null) {
+                    Occurrence occurrence = OccurrenceConverter.fromEntity(entity);
+                    Log.d(TAG, "Ocorrência encontrada: " + occurrence.getName());
+                    if (callback != null) {
+                        callback.onSuccess(occurrence);
+                    }
+                } else {
+                    Log.d(TAG, "Ocorrência não encontrada no cache");
+                    if (callback != null) {
+                        callback.onError("Ocorrência não encontrada");
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao buscar ocorrência por referenceId", e);
+                if (callback != null) {
+                    callback.onError("Erro ao buscar ocorrência: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * Verifica se existem ocorrências no cache
+     */
+    public void hasOccurrencesInCache(BooleanCallback callback) {
+        executor.execute(() -> {
+            try {
+                int count = occurrenceDao.getActiveOccurrencesCount();
+                boolean hasOccurrences = count > 0;
+                Log.d(TAG, "Ocorrências no cache: " + count + " (tem ocorrências: " + hasOccurrences + ")");
+                if (callback != null) {
+                    callback.onResult(hasOccurrences);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao verificar ocorrências no cache", e);
+                if (callback != null) {
+                    callback.onResult(false);
+                }
+            }
+        });
+    }
+    
+    /**
+     * Limpa o cache de ocorrências
+     */
+    public void clearOccurrenceCache(OperationCallback callback) {
+        executor.execute(() -> {
+            try {
+                occurrenceDao.clearAllOccurrences();
+                Log.d(TAG, "Cache de ocorrências limpo");
+                if (callback != null) {
+                    callback.onSuccess();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao limpar cache de ocorrências", e);
+                if (callback != null) {
+                    callback.onError("Erro ao limpar cache: " + e.getMessage());
+                }
+            }
+        });
+    }
+    
+    public interface OccurrenceCacheCallback {
+        void onSuccess(int count);
+        void onError(String error);
+    }
+    
+    public interface OccurrenceListCallback {
+        void onSuccess(List<Occurrence> occurrences);
+        void onError(String error);
+    }
+    
+    public interface OccurrenceCallback {
+        void onSuccess(Occurrence occurrence);
         void onError(String error);
     }
 }
