@@ -137,29 +137,40 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
     }
 
     private void loadOccurrencesFromApi() {
-        // Primeiro tenta buscar do cache local
-        com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
-            com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
+        // Verificar conectividade
+        com.example.zylogi_motoristas.offline.ConnectivityManager connectivityManager = 
+            com.example.zylogi_motoristas.offline.ConnectivityManager.getInstance(getContext());
         
-        offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
-            @Override
-            public void onSuccess(List<Occurrence> cachedOccurrences) {
-                if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
-                    Log.d("FinalizePickupNotCompletedDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
-                    occurrenceList = cachedOccurrences;
-                    setupOccurrenceSpinner();
-                } else {
-                    Log.d("FinalizePickupNotCompletedDialog", "Cache vazio, tentando buscar da API");
-                    loadOccurrencesFromApiDirectly();
-                }
-            }
+        // Se tiver conexão, buscar diretamente da API
+        if (connectivityManager.isConnected()) {
+            Log.d("FinalizePickupNotCompletedDialog", "Conexão disponível, buscando ocorrências diretamente da API");
+            loadOccurrencesFromApiDirectly();
+        } else {
+            // Se não tiver conexão, usar cache
+            Log.d("FinalizePickupNotCompletedDialog", "Sem conexão, tentando usar cache");
+            com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
+                com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
             
-            @Override
-            public void onError(String error) {
-                Log.e("FinalizePickupNotCompletedDialog", "Erro ao buscar cache: " + error);
-                loadOccurrencesFromApiDirectly();
-            }
-        });
+            offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
+                @Override
+                public void onSuccess(List<Occurrence> cachedOccurrences) {
+                    if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
+                        Log.d("FinalizePickupNotCompletedDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
+                        occurrenceList = cachedOccurrences;
+                        setupOccurrenceSpinner();
+                    } else {
+                        Log.d("FinalizePickupNotCompletedDialog", "Cache vazio, usando spinner de fallback");
+                        setupFallbackSpinner();
+                    }
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Log.e("FinalizePickupNotCompletedDialog", "Erro ao buscar cache: " + error);
+                    setupFallbackSpinner();
+                }
+            });
+        }
     }
     
     private void loadOccurrencesFromApiDirectly() {
@@ -307,12 +318,27 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             Log.d("FinalizePickupNotCompletedDialog", "Base64 preview (primeiros 100 chars): " + photoBase64.substring(0, Math.min(100, photoBase64.length())));
             
             // Atualizar UI
-            textViewPhotoStatus.setText("✅ Foto capturada");
-            textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
+            runOnUiThread(() -> {
+                textViewPhotoStatus.setText("✅ Foto capturada");
+                textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
+                Log.d("FinalizePickupNotCompletedDialog", "UI atualizada: textViewPhotoStatus = '✅ Foto capturada'");
+            });
             
             Log.d("FinalizePickupNotCompletedDialog", "Foto da câmera salva como Base64 com sucesso!");
         } else {
             Log.e("FinalizePickupNotCompletedDialog", "Erro: Bitmap da foto da câmera é nulo");
+            runOnUiThread(() -> {
+                textViewPhotoStatus.setText("❌ Erro ao capturar foto");
+                textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_red_dark));
+            });
+        }
+    }
+    
+    private void runOnUiThread(Runnable action) {
+        if (getContext() instanceof android.app.Activity) {
+            ((android.app.Activity) getContext()).runOnUiThread(action);
+        } else {
+            action.run();
         }
     }
     
@@ -386,15 +412,22 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             Log.d("FinalizePickupNotCompletedDialog", "Tamanho da string Base64: " + photoBase64.length());
             Log.d("FinalizePickupNotCompletedDialog", "Preview Base64: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
             
-            // Atualizar UI
-            textViewPhotoStatus.setText("✅ Foto da galeria selecionada!");
-            textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
+            // Atualizar UI na thread principal
+            runOnUiThread(() -> {
+                textViewPhotoStatus.setText("✅ Foto da galeria selecionada!");
+                textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_green_dark));
+                textViewPhotoStatus.setVisibility(View.VISIBLE);
+                Log.d("FinalizePickupNotCompletedDialog", "UI atualizada: textViewPhotoStatus = '✅ Foto da galeria selecionada!'");
+            });
             
             Log.d("FinalizePickupNotCompletedDialog", "Foto da galeria salva como Base64 com sucesso!");
         } else {
             Log.e("FinalizePickupNotCompletedDialog", "Erro: Bitmap da foto da galeria é nulo");
-            textViewPhotoStatus.setText("❌ Erro ao selecionar foto");
-            textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_red_dark));
+            runOnUiThread(() -> {
+                textViewPhotoStatus.setText("❌ Erro ao selecionar foto");
+                textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.holo_red_dark));
+                textViewPhotoStatus.setVisibility(View.VISIBLE);
+            });
         }
     }
 
@@ -403,10 +436,11 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         String occurrenceId = (occurrence != null && occurrence.getId() != null) ? occurrence.getId() : "";
         String driverAttachmentUrl = photoBase64 != null ? "data:image/jpeg;base64," + photoBase64 : "";
         
-        // Logs de debug para rastrear os valores
+        // Logs de debug detalhados para rastrear os valores
         Log.d("FinalizePickupNotCompletedDialog", "=== DADOS PARA ENVIO (NOT_COMPLETED) ===");
-        Log.d("FinalizePickupNotCompletedDialog", "Pickup ID: " + currentPickup.getId());
-        Log.d("FinalizePickupNotCompletedDialog", "Observação: '" + observation + "'");
+        Log.d("FinalizePickupNotCompletedDialog", "Pickup ID: " + (currentPickup != null ? currentPickup.getId() : "null"));
+        Log.d("FinalizePickupNotCompletedDialog", "Pickup Reference ID: " + (currentPickup != null ? currentPickup.getReferenceId() : "null"));
+        Log.d("FinalizePickupNotCompletedDialog", "Observação: '" + (observation != null ? observation : "vazio") + "'");
         Log.d("FinalizePickupNotCompletedDialog", "Occurrence ID: '" + occurrenceId + "'");
         Log.d("FinalizePickupNotCompletedDialog", "photoBase64 is null: " + (photoBase64 == null));
         if (photoBase64 != null) {
@@ -414,11 +448,12 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             Log.d("FinalizePickupNotCompletedDialog", "photoBase64 preview: " + photoBase64.substring(0, Math.min(50, photoBase64.length())));
         }
         Log.d("FinalizePickupNotCompletedDialog", "driverAttachmentUrl: " + driverAttachmentUrl);
-        Log.d("FinalizePickupNotCompletedDialog", "Driver Attachment URL: " + (photoBase64 != null ? "Foto presente (Base64)" : "Sem foto"));
+        Log.d("FinalizePickupNotCompletedDialog", "Driver Attachment URL: " + (photoBase64 != null ? "Foto presente (Base64) - " + (photoBase64.length() / 1024) + "KB" : "Sem foto"));
         
         if (occurrence != null) {
             Log.d("FinalizePickupNotCompletedDialog", "Occurrence Name: " + occurrence.getName());
             Log.d("FinalizePickupNotCompletedDialog", "Occurrence ID from object: " + occurrence.getId());
+            Log.d("FinalizePickupNotCompletedDialog", "Occurrence Number: " + occurrence.getOccurrenceNumber());
         } else {
             Log.d("FinalizePickupNotCompletedDialog", "Occurrence object is null");
         }
@@ -443,6 +478,11 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         }
         
         if (activity != null) {
+            Log.d("FinalizePickupNotCompletedDialog", "=== PARÂMETROS PARA API ===");
+            Log.d("FinalizePickupNotCompletedDialog", "Pickup: " + (currentPickup != null ? currentPickup.getId() : "null"));
+            Log.d("FinalizePickupNotCompletedDialog", "Observação: " + observation);
+            Log.d("FinalizePickupNotCompletedDialog", "ID da Ocorrência: " + occurrenceId);
+            Log.d("FinalizePickupNotCompletedDialog", "driverAttachmentUrl: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "presente" : "vazio"));
             Log.d("FinalizePickupNotCompletedDialog", "Chamando MainViewModel.finalizePickupWithDetailsNotCompleted...");
             activity.getMainViewModel().finalizePickupWithDetailsNotCompleted(
                 currentPickup, 

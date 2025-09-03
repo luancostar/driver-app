@@ -453,10 +453,11 @@ public class MainViewModel extends AndroidViewModel {
                     // Garantir que o tipo MIME está correto
                     String mimeType = "image/png";
                     RequestBody imageBody = RequestBody.create(pngImageBytes, MediaType.parse(mimeType));
-                    // A chave "driverAttachmentUrl" deve corresponder exatamente ao que o backend espera
-                    imagePart = MultipartBody.Part.createFormData("driverAttachmentUrl", "driver_photo.png", imageBody);
+                    // O nome do campo deve ser "driverAttachmentUrl" conforme documentação da API
+                    String fieldName = "driverAttachmentUrl";
+                    imagePart = MultipartBody.Part.createFormData(fieldName, "driver_photo.png", imageBody);
                     
-                    android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo 'driverAttachmentUrl' - Tamanho: " + pngImageBytes.length + " bytes");
+                    android.util.Log.d("MainViewModel", "✅ MultipartBody.Part criado para campo '" + fieldName + "' - Tamanho: " + pngImageBytes.length + " bytes");
                     android.util.Log.d("MainViewModel", "Content-Type: image/png");
                     android.util.Log.d("MainViewModel", "Filename: driver_photo.png");
                     android.util.Log.d("MainViewModel", "🔄 Enviando como PNG (conversão de JPEG para PNG)");
@@ -486,60 +487,68 @@ public class MainViewModel extends AndroidViewModel {
                 android.util.Log.d("MainViewModel", "Campo 'observationDriver': " + (observationDriver != null ? observationDriver : "vazio") + " (" + observationBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'occurrenceId': " + (occurrenceId != null ? occurrenceId : "vazio") + " (" + occurrenceIdBody.contentLength() + " bytes)");
                 android.util.Log.d("MainViewModel", "Campo 'completionDate': " + completionDate + " (" + completionDateBody.contentLength() + " bytes)");
+                android.util.Log.d("MainViewModel", "Campo 'driverNumberPackages': " + (driverNumberPackagesBody != null ? "Presente (" + driverNumberPackagesBody.contentLength() + " bytes)" : "❌ NULO - será omitido"));
                 android.util.Log.d("MainViewModel", "Campo 'driverAttachmentUrl': " + (imagePart != null ? "ARQUIVO PRESENTE (MultipartBody.Part)" : "❌ NULO - SEM ARQUIVO"));
             } catch (Exception e) {
                 android.util.Log.e("MainViewModel", "Erro ao obter tamanhos dos campos: " + e.getMessage());
             }
             
-            // Fazer a requisição multipart
-            apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, driverNumberPackagesBody, imagePart)
-                    .enqueue(new Callback<Pickup>() {
-                        @Override
-                        public void onResponse(Call<Pickup> call, Response<Pickup> response) {
-                            if (response.isSuccessful()) {
-                                Pickup updatedPickup = response.body();
-                                android.util.Log.d("MainViewModel", "=== RESPOSTA DA API MULTIPART ===");
-                                android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso: " + (updatedPickup != null ? updatedPickup.getId() : "null"));
-                                if (updatedPickup != null) {
-                                    android.util.Log.d("MainViewModel", "Status: " + updatedPickup.getStatus());
-                                    android.util.Log.d("MainViewModel", "ID: " + updatedPickup.getId());
-                                }
-                                _updateResult.postValue("Coleta finalizada com sucesso!");
-                                
-                                // Atualiza o status no cache local
-                                 offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
-                                     @Override
-                                     public void onSuccess() {
-                                         android.util.Log.d("MainViewModel", "Status da coleta atualizado no cache (multipart): " + pickup.getId());
-                                     }
-
-                                     @Override
-                                     public void onError(String error) {
-                                         android.util.Log.e("MainViewModel", "Erro ao atualizar cache (multipart): " + error);
-                                     }
-                                 });
-                                
-                                fetchPickups();
-                            } else {
-                                android.util.Log.e("MainViewModel", "Falha ao finalizar coleta multipart: " + response.code());
-                                try {
-                                    String errorBody = response.errorBody() != null ? response.errorBody().string() : "Sem detalhes do erro";
-                                    android.util.Log.e("MainViewModel", "Erro detalhado: " + errorBody);
-                                } catch (Exception e) {
-                                    android.util.Log.e("MainViewModel", "Erro ao ler errorBody: " + e.getMessage());
-                                }
-                                _updateResult.postValue("Falha ao finalizar a coleta: " + response.code());
-                                _isLoading.postValue(false);
-                            }
+            // Fazer a requisição multipart - só enviar driverNumberPackagesBody se não for null
+            Call<Pickup> call;
+            if (driverNumberPackagesBody != null) {
+                call = apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, driverNumberPackagesBody, imagePart);
+            } else {
+                // Criar uma versão sem driverNumberPackages para evitar erro 400
+                call = apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, null, imagePart);
+            }
+            
+            call.enqueue(new Callback<Pickup>() {
+                @Override
+                public void onResponse(Call<Pickup> call, Response<Pickup> response) {
+                    if (response.isSuccessful()) {
+                        Pickup updatedPickup = response.body();
+                        android.util.Log.d("MainViewModel", "=== RESPOSTA DA API MULTIPART ===");
+                        android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso: " + (updatedPickup != null ? updatedPickup.getId() : "null"));
+                        if (updatedPickup != null) {
+                            android.util.Log.d("MainViewModel", "Status: " + updatedPickup.getStatus());
+                            android.util.Log.d("MainViewModel", "ID: " + updatedPickup.getId());
                         }
+                        _updateResult.postValue("Coleta finalizada com sucesso!");
                         
-                        @Override
-                        public void onFailure(Call<Pickup> call, Throwable t) {
-                            android.util.Log.e("MainViewModel", "Erro de conexão multipart: " + t.getMessage());
-                            _updateResult.postValue("Erro de conexão: " + t.getMessage());
-                            _isLoading.postValue(false);
+                        // Atualiza o status no cache local
+                         offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
+                             @Override
+                             public void onSuccess() {
+                                 android.util.Log.d("MainViewModel", "Status da coleta atualizado no cache (multipart): " + pickup.getId());
+                             }
+
+                             @Override
+                             public void onError(String error) {
+                                 android.util.Log.e("MainViewModel", "Erro ao atualizar cache (multipart): " + error);
+                             }
+                         });
+                        
+                        fetchPickups();
+                    } else {
+                        android.util.Log.e("MainViewModel", "Falha ao finalizar coleta multipart: " + response.code());
+                        try {
+                            String errorBody = response.errorBody() != null ? response.errorBody().string() : "Sem detalhes do erro";
+                            android.util.Log.e("MainViewModel", "Erro detalhado: " + errorBody);
+                        } catch (Exception e) {
+                            android.util.Log.e("MainViewModel", "Erro ao ler errorBody: " + e.getMessage());
                         }
-                    });
+                        _updateResult.postValue("Falha ao finalizar a coleta: " + response.code());
+                        _isLoading.postValue(false);
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<Pickup> call, Throwable t) {
+                    android.util.Log.e("MainViewModel", "Erro de conexão multipart: " + t.getMessage());
+                    _updateResult.postValue("Erro de conexão: " + t.getMessage());
+                    _isLoading.postValue(false);
+                }
+            });
                     
         } catch (Exception e) {
             android.util.Log.e("MainViewModel", "Erro ao preparar multipart: " + e.getMessage());

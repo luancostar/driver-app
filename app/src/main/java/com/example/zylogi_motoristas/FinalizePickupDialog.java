@@ -141,38 +141,49 @@ public class FinalizePickupDialog extends Dialog {
     private void loadOccurrencesFromApi() {
         Log.d("FinalizePickupDialog", "Iniciando carregamento de ocorrências");
         
-        // Primeiro tenta buscar do cache local
-        com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
-            com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
+        // Verificar conectividade
+        com.example.zylogi_motoristas.offline.ConnectivityManager connectivityManager = 
+            com.example.zylogi_motoristas.offline.ConnectivityManager.getInstance(getContext());
         
-        offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
-            @Override
-            public void onSuccess(List<Occurrence> cachedOccurrences) {
-                if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
-                    Log.d("FinalizePickupDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
-                    occurrenceList.clear();
-                    occurrenceList.addAll(cachedOccurrences);
-                    
-                    // Log das ocorrências do cache
-                    for (Occurrence occ : cachedOccurrences) {
-                        Log.d("FinalizePickupDialog", "Ocorrência do cache: " + occ.getName() + " (ID: " + occ.getId() + ")");
-                    }
-                    
-                    setupOccurrenceSpinner();
-                } else {
-                    Log.d("FinalizePickupDialog", "Cache vazio, tentando buscar da API");
-                    loadOccurrencesFromApiDirectly();
-                }
-            }
+        // Se tiver conexão, buscar diretamente da API
+        if (connectivityManager.isConnected()) {
+            Log.d("FinalizePickupDialog", "Conexão disponível, buscando ocorrências diretamente da API");
+            loadOccurrencesFromApiDirectly();
+        } else {
+            // Se não tiver conexão, usar cache
+            Log.d("FinalizePickupDialog", "Sem conexão, tentando usar cache");
+            com.example.zylogi_motoristas.offline.OfflineRepository offlineRepository = 
+                com.example.zylogi_motoristas.offline.OfflineRepository.getInstance(getContext());
             
-            @Override
-            public void onError(String error) {
-                Log.e("FinalizePickupDialog", "Erro ao buscar cache: " + error);
-                loadOccurrencesFromApiDirectly();
-            }
-        });
+            offlineRepository.getCachedOccurrences(new com.example.zylogi_motoristas.offline.OfflineRepository.OccurrenceListCallback() {
+                @Override
+                public void onSuccess(List<Occurrence> cachedOccurrences) {
+                    if (cachedOccurrences != null && !cachedOccurrences.isEmpty()) {
+                        Log.d("FinalizePickupDialog", "Usando ocorrências do cache: " + cachedOccurrences.size());
+                        occurrenceList.clear();
+                        occurrenceList.addAll(cachedOccurrences);
+                        
+                        // Log das ocorrências do cache
+                        for (Occurrence occ : cachedOccurrences) {
+                            Log.d("FinalizePickupDialog", "Ocorrência do cache: " + occ.getName() + " (ID: " + occ.getId() + ")");
+                        }
+                        
+                        setupOccurrenceSpinner();
+                    } else {
+                        Log.d("FinalizePickupDialog", "Cache vazio, usando spinner de fallback");
+                        setupFallbackSpinner();
+                    }
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Log.e("FinalizePickupDialog", "Erro ao buscar cache: " + error);
+                    setupFallbackSpinner();
+                }
+            });
+        }
     }
-    
+
     private void loadOccurrencesFromApiDirectly() {
         Log.d("FinalizePickupDialog", "Iniciando carregamento de ocorrências da API");
         
