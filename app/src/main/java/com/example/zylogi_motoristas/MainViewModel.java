@@ -404,7 +404,10 @@ public class MainViewModel extends AndroidViewModel {
             // Criar RequestBody para campos de texto seguindo as melhores práticas
             RequestBody statusBody = RequestBody.create(status, MediaType.parse("text/plain"));
             RequestBody observationBody = RequestBody.create(observationDriver != null ? observationDriver : "", MediaType.parse("text/plain"));
-            RequestBody occurrenceIdBody = RequestBody.create(occurrenceId != null ? occurrenceId : "", MediaType.parse("text/plain"));
+            RequestBody occurrenceIdBody = null;
+            if (occurrenceId != null && !occurrenceId.trim().isEmpty()) {
+                occurrenceIdBody = RequestBody.create(occurrenceId, MediaType.parse("text/plain"));
+            }
             
             // Adicionar data e hora de finalização (horário local do Brasil)
             String completionDate = LocalDateTime.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
@@ -493,14 +496,16 @@ public class MainViewModel extends AndroidViewModel {
                 android.util.Log.e("MainViewModel", "Erro ao obter tamanhos dos campos: " + e.getMessage());
             }
             
-            // Fazer a requisição multipart - só enviar driverNumberPackagesBody se não for null
-            Call<Pickup> call;
-            if (driverNumberPackagesBody != null) {
-                call = apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, driverNumberPackagesBody, imagePart);
-            } else {
-                // Criar uma versão sem driverNumberPackages para evitar erro 400
-                call = apiService.finalizePickupWithPhoto(pickup.getId(), statusBody, observationBody, occurrenceIdBody, completionDateBody, null, imagePart);
-            }
+            // Fazer a requisição multipart - só enviar campos não nulos
+            Call<Pickup> call = apiService.finalizePickupWithPhoto(
+                pickup.getId(),
+                statusBody,
+                observationBody,
+                occurrenceIdBody,
+                completionDateBody,
+                driverNumberPackagesBody,
+                imagePart
+            );
             
             call.enqueue(new Callback<Pickup>() {
                 @Override
@@ -514,6 +519,7 @@ public class MainViewModel extends AndroidViewModel {
                             android.util.Log.d("MainViewModel", "ID: " + updatedPickup.getId());
                         }
                         _updateResult.postValue("Coleta finalizada com sucesso!");
+                        _isLoading.postValue(false);
                         
                         // Atualiza o status no cache local
                          offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
@@ -573,7 +579,7 @@ public class MainViewModel extends AndroidViewModel {
             updates.put("occurrenceId", occurrenceId);
         }
         if (driverNumberPackages != null) {
-            updates.put("driverNumberPackages", driverNumberPackages);
+            updates.put("driverNumberPackages", String.valueOf(driverNumberPackages));
         }
         
         // Enviar apenas os campos que têm valores
@@ -584,6 +590,7 @@ public class MainViewModel extends AndroidViewModel {
                         if (response.isSuccessful()) {
                             android.util.Log.d("MainViewModel", "Coleta finalizada com sucesso usando JSON");
                             _updateResult.postValue("Coleta finalizada com sucesso!");
+                            _isLoading.postValue(false);
                             
                             // Atualiza o status no cache local
                              offlineRepository.updateCachedPickupStatus(pickup.getId(), status, new OfflineRepository.OperationCallback() {
@@ -601,6 +608,12 @@ public class MainViewModel extends AndroidViewModel {
                             fetchPickups();
                         } else {
                             android.util.Log.e("MainViewModel", "Falha ao finalizar coleta JSON: " + response.code());
+                            try {
+                                String errorBody = response.errorBody() != null ? response.errorBody().string() : "Sem detalhes do erro";
+                                android.util.Log.e("MainViewModel", "Erro detalhado JSON: " + errorBody);
+                            } catch (Exception e) {
+                                android.util.Log.e("MainViewModel", "Erro ao ler errorBody JSON: " + e.getMessage());
+                            }
                             _updateResult.postValue("Falha ao finalizar a coleta: " + response.code());
                             _isLoading.postValue(false);
                         }

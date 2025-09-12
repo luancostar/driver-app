@@ -116,21 +116,20 @@ public class FinalizePickupDialog extends Dialog {
         
         buttonFinalize.setOnClickListener(v -> {
             String observation = editTextObservation.getText().toString().trim();
-
-            // Para coletas coletadas, usar sempre a ocorrência com referenceId=1
-            // Não precisamos validar seleção do spinner pois ele está oculto
-            Occurrence defaultOccurrence = findOccurrenceByReferenceId(1);
             
-            if (defaultOccurrence == null) {
-                // Fallback: criar uma ocorrência padrão para coletas completadas
-                Log.w("FinalizePickupDialog", "Ocorrência com referenceId=1 não encontrada, criando fallback");
-                defaultOccurrence = createDefaultOccurrence();
+            // Coletar ocorrência selecionada no spinner
+            Occurrence selectedOccurrence = null;
+            int selectedPosition = spinnerOccurrence.getSelectedItemPosition();
+            if (selectedPosition > 0 && occurrenceList != null && selectedPosition <= occurrenceList.size()) {
+                // Posição 0 é "Selecione uma ocorrência", então subtraímos 1
+                selectedOccurrence = occurrenceList.get(selectedPosition - 1);
+                Log.d("FinalizePickupDialog", "Ocorrência selecionada: " + selectedOccurrence.getName() + " (ID: " + selectedOccurrence.getId() + ")");
+            } else {
+                Log.d("FinalizePickupDialog", "Nenhuma ocorrência selecionada ou posição inválida: " + selectedPosition);
             }
-            
-            Log.d("FinalizePickupDialog", "Usando ocorrência padrão: " + defaultOccurrence.getName() + " (ID: " + defaultOccurrence.getId() + ", ReferenceId: " + defaultOccurrence.getReferenceId() + ")");
 
-            // Finalizar com detalhes completos usando a ocorrência padrão
-            finalizePickupWithDetails(defaultOccurrence, observation);
+            // Finalizar com todos os dados coletados
+            finalizePickupWithDetails(selectedOccurrence, observation);
         });
 
         // Configurar propriedades do dialog
@@ -437,9 +436,8 @@ public class FinalizePickupDialog extends Dialog {
     }
 
     private void finalizePickupWithDetails(Occurrence occurrence, String observation) {
-        // Para coletas coletadas, usar sempre a ocorrência com referenceId=1
-        Occurrence defaultOccurrence = findOccurrenceByReferenceId(1);
-        String occurrenceId = (defaultOccurrence != null && defaultOccurrence.getId() != null) ? defaultOccurrence.getId() : "";
+        // occurrenceId agora é opcional - enviar apenas se uma ocorrência foi selecionada
+        String occurrenceId = (occurrence != null && occurrence.getId() != null) ? occurrence.getId() : null;
         String driverAttachmentUrl = photoBase64 != null ? "data:image/jpeg;base64," + photoBase64 : "";
         
         // Obter quantidade de itens coletados
@@ -466,13 +464,7 @@ public class FinalizePickupDialog extends Dialog {
         Log.d("FinalizePickupDialog", "driverAttachmentUrl: " + driverAttachmentUrl);
         Log.d("FinalizePickupDialog", "driverAttachmentUrl length: " + (driverAttachmentUrl != null ? driverAttachmentUrl.length() : "null"));
         
-        if (defaultOccurrence != null) {
-            Log.d("FinalizePickupDialog", "Default Occurrence Name: " + defaultOccurrence.getName());
-            Log.d("FinalizePickupDialog", "Default Occurrence ID: " + defaultOccurrence.getId());
-            Log.d("FinalizePickupDialog", "Default Occurrence ReferenceId: " + defaultOccurrence.getReferenceId());
-        } else {
-            Log.d("FinalizePickupDialog", "Default occurrence (referenceId=1) not found");
-        }
+        Log.d("FinalizePickupDialog", "Occurrence ID para envio: " + (occurrenceId != null ? occurrenceId : "null (opcional)"));
         
         Log.d("FinalizePickupDialog", "Driver Number Packages: " + driverNumberPackages);
         

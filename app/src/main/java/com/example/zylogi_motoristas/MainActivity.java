@@ -520,16 +520,18 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private void showFinalizePickupDialog(final Pickup pickup) {
         FinalizePickupDialog dialog = new FinalizePickupDialog(this, pickup, 
             (occurrence, observation) -> {
-                // Aqui você pode usar a ocorrência e observação
-                // Por enquanto, vamos finalizar como COMPLETED
-                // TODO: Atualizar API para aceitar occurrence e observation
-                mainViewModel.finalizePickup(pickup.getId(), "COMPLETED");
-                
-                // Mostrar informações capturadas (temporário para debug)
-                String message = "Ocorrência: " + occurrence.getName() + 
-                               " (Nº " + occurrence.getOccurrenceNumber() + ")" +
-                               "\nObservação: " + observation;
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                // Verificar se occurrence não é null antes de acessar seus métodos
+                if (occurrence != null) {
+                    // Mostrar informações capturadas (temporário para debug)
+                    String message = "Ocorrência: " + occurrence.getName() + 
+                                   " (Nº " + occurrence.getOccurrenceNumber() + ")" +
+                                   "\nObservação: " + observation;
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                } else {
+                    // Caso occurrence seja null, mostrar apenas a observação
+                    String message = "Coleta finalizada\nObservação: " + observation;
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                }
             });
         dialog.show();
     }

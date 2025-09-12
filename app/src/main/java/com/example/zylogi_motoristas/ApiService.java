@@ -33,7 +33,7 @@ public interface ApiService {
     Call<Pickup> getPickupById(@Path("id") String pickupId);
 
     // Método para finalizar coletas - usa Map para enviar apenas campos necessários
-    @PATCH("pickups/{id}/driver-finalize")
+    @PATCH("pickups/{id}/driver-finalize-app")
     Call<Pickup> finalizePickup(
             @Path("id") String pickupId,
             @Body Map<String, Object> updates
@@ -41,7 +41,7 @@ public interface ApiService {
 
     // Método para finalizar coletas com foto usando multipart/form-data
     @Multipart
-    @PATCH("pickups/{id}/driver-finalize")
+    @PATCH("pickups/{id}/driver-finalize-app")
     Call<Pickup> finalizePickupWithPhoto(
             @Path("id") String pickupId,
             @Part("status") RequestBody status,
