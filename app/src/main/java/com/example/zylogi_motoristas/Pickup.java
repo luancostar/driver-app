@@ -29,7 +29,7 @@ public class Pickup {
     private ClientAddress clientAddress;
 
     // ADICIONADO: Campo para data de agendamento
-    @SerializedName("scheduledDate")
+    @SerializedName("scheduledPickupDate")  // CORREÇÃO: era "scheduledDate"
     private String scheduledDate;
 
     // ADICIONADO: Campo para pickup route ID

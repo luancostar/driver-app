@@ -157,7 +157,13 @@ public class MainViewModel extends AndroidViewModel {
                 return; 
             }
 
-            String today = LocalDate.now(ZoneId.of("America/Sao_Paulo")).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            // CORREÇÃO: Garantir que sempre use o fuso horário do Brasil
+        String today = LocalDate.now(ZoneId.of("America/Sao_Paulo"))
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        // Log para debug do fuso horário
+        android.util.Log.d("MainViewModel", "Data atual (Brasil): " + today);
+        android.util.Log.d("MainViewModel", "Data atual (Sistema): " + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
             // Tenta buscar da API primeiro
             try {
@@ -182,19 +188,31 @@ public class MainViewModel extends AndroidViewModel {
 
                                 // Salva as coletas no cache para uso offline
                                 try {
-                                    offlineRepository.cachePickups(todayScheduledPickups, driverId, new OfflineRepository.PickupCacheCallback() {
+                                    // PRIMEIRO: Limpa o cache do motorista para remover coletas antigas
+                                    offlineRepository.clearPickupCache(driverId, new OfflineRepository.OperationCallback() {
                                         @Override
-                                        public void onSuccess(int count) {
-                                            android.util.Log.d("MainViewModel", "Coletas salvas no cache: " + count);
+                                        public void onSuccess() {
+                                            // DEPOIS: Salva as novas coletas
+                                            offlineRepository.cachePickups(todayScheduledPickups, driverId, new OfflineRepository.PickupCacheCallback() {
+                                                @Override
+                                                public void onSuccess(int count) {
+                                                    android.util.Log.d("MainViewModel", "Cache limpo e " + count + " coletas salvas");
+                                                }
+
+                                                @Override
+                                                public void onError(String error) {
+                                                    android.util.Log.e("MainViewModel", "Erro ao salvar no cache: " + error);
+                                                }
+                                            });
                                         }
 
                                         @Override
                                         public void onError(String error) {
-                                            android.util.Log.e("MainViewModel", "Erro ao salvar no cache: " + error);
+                                            android.util.Log.e("MainViewModel", "Erro ao limpar cache: " + error);
                                         }
                                     });
                                 } catch (Exception e) {
-                                    android.util.Log.w("MainViewModel", "Erro ao salvar cache: " + e.getMessage());
+                                    android.util.Log.w("MainViewModel", "Erro ao gerenciar cache: " + e.getMessage());
                                 }
                                 
                                 // Carrega e armazena ocorrências no cache quando online
@@ -254,50 +272,43 @@ public class MainViewModel extends AndroidViewModel {
      */
     private void loadPickupsFromCache(String driverId, String date) {
         try {
+            android.util.Log.d("MainViewModel", "Carregando coletas do cache para: " + driverId);
+            // Usa a data passada como parâmetro, que vem do fetchPickups
             offlineRepository.getCachedPickups(driverId, date, new OfflineRepository.PickupListCallback() {
                 @Override
                 public void onSuccess(List<Pickup> cachedPickups) {
                     try {
+                        android.util.Log.d("MainViewModel", "Coletas encontradas no cache: " + (cachedPickups != null ? cachedPickups.size() : 0));
+                        
                         if (cachedPickups != null && !cachedPickups.isEmpty()) {
-                            // Filtra coletas agendadas para hoje com tratamento de erro
-                            List<Pickup> todayScheduledPickups = new java.util.ArrayList<>();
-                            for (Pickup pickup : cachedPickups) {
-                                try {
-                                    if (pickup != null && isScheduledForToday(pickup.getScheduledDate())) {
-                                        todayScheduledPickups.add(pickup);
-                                    }
-                                } catch (Exception e) {
-                                    android.util.Log.w("MainViewModel", "Erro ao filtrar coleta: " + e.getMessage());
-                                }
-                            }
-
-                            // Filtra para mostrar apenas as pendentes no carrossel
+                            // Filtra apenas por status PENDING - SEM filtrar por data novamente
                             List<Pickup> pendingPickups = new java.util.ArrayList<>();
-                            for (Pickup pickup : todayScheduledPickups) {
-                                try {
-                                    if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
-                                        pendingPickups.add(pickup);
-                                    }
-                                } catch (Exception e) {
-                                    android.util.Log.w("MainViewModel", "Erro ao filtrar coleta pendente: " + e.getMessage());
+                            for (Pickup pickup : cachedPickups) {
+                                if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
+                                    pendingPickups.add(pickup);
                                 }
                             }
                             
-                            // Usar postValue() para threads de background
-                            _openPickups.postValue(pendingPickups);
-                            calculateProgress(todayScheduledPickups);
+                            android.util.Log.d("MainViewModel", "Coletas pendentes: " + pendingPickups.size());
                             
-                            // Informa que está usando dados offline
-                            _error.postValue("Usando dados offline - " + cachedPickups.size() + " coletas carregadas");
-                            android.util.Log.i("MainViewModel", "Coletas carregadas do cache: " + cachedPickups.size());
+                            // Atualiza a UI
+                            _openPickups.postValue(pendingPickups);
+                            calculateProgress(cachedPickups);
+                            
+                            if (pendingPickups.isEmpty()) {
+                                _error.postValue("Nenhuma coleta pendente encontrada offline");
+                            } else {
+                                _error.postValue("Modo offline - " + pendingPickups.size() + " coletas carregadas");
+                            }
                         } else {
-                            _error.postValue("Sem conexão e nenhuma coleta armazenada offline");
+                            android.util.Log.w("MainViewModel", "Nenhuma coleta no cache");
+                            _error.postValue("Sem conexão e nenhuma coleta armazenada");
                             _openPickups.postValue(new java.util.ArrayList<>());
                             calculateProgress(new java.util.ArrayList<>());
                         }
                     } catch (Exception e) {
-                        android.util.Log.e("MainViewModel", "Erro ao processar coletas do cache", e);
-                        _error.postValue("Erro ao processar dados offline: " + e.getMessage());
+                        android.util.Log.e("MainViewModel", "Erro ao processar cache: " + e.getMessage());
+                        _error.postValue("Erro ao carregar dados offline");
                         _openPickups.postValue(new java.util.ArrayList<>());
                         calculateProgress(new java.util.ArrayList<>());
                     } finally {
@@ -307,16 +318,16 @@ public class MainViewModel extends AndroidViewModel {
 
                 @Override
                 public void onError(String error) {
-                    android.util.Log.e("MainViewModel", "Erro ao carregar do cache: " + error);
-                    _error.postValue("Erro ao carregar dados offline: " + error);
+                    android.util.Log.e("MainViewModel", "Erro no cache: " + error);
+                    _error.postValue("Erro ao acessar dados offline: " + error);
                     _openPickups.postValue(new java.util.ArrayList<>());
                     calculateProgress(new java.util.ArrayList<>());
                     _isLoading.postValue(false);
                 }
             });
         } catch (Exception e) {
-            android.util.Log.e("MainViewModel", "Erro crítico ao acessar cache", e);
-            _error.postValue("Erro crítico ao acessar dados offline");
+            android.util.Log.e("MainViewModel", "Erro crítico no loadPickupsFromCache: " + e.getMessage());
+            _error.postValue("Erro crítico ao carregar dados offline");
             _openPickups.postValue(new java.util.ArrayList<>());
             calculateProgress(new java.util.ArrayList<>());
             _isLoading.postValue(false);

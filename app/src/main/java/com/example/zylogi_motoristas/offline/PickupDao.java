@@ -57,6 +57,12 @@ public interface PickupDao {
     void deleteOldPickups(long cutoffTime);
     
     /**
+     * Remove coletas de um motorista que não são da data especificada
+     */
+    @Query("DELETE FROM cached_pickups WHERE driver_id = :driverId AND (scheduled_date IS NULL OR scheduled_date NOT LIKE :date || '%')")
+    void deletePickupsNotFromDate(String driverId, String date);
+    
+    /**
      * Obtém uma coleta pelo ID
      */
     @Query("SELECT * FROM cached_pickups WHERE id = :pickupId LIMIT 1")
@@ -70,8 +76,9 @@ public interface PickupDao {
     
     /**
      * Obtém coletas de um motorista para uma data específica
+     * CORRIGIDO: Inclui coletas com scheduledDate null (assumindo que são para hoje)
      */
-    @Query("SELECT * FROM cached_pickups WHERE driver_id = :driverId AND scheduled_date = :date ORDER BY scheduled_date ASC")
+    @Query("SELECT * FROM cached_pickups WHERE driver_id = :driverId AND (scheduled_date LIKE :date || '%' OR scheduled_date IS NULL) ORDER BY scheduled_date ASC")
     List<PickupEntity> getPickupsByDriverIdAndDate(String driverId, String date);
     
     /**

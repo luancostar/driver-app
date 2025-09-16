@@ -479,6 +479,10 @@ public class OfflineRepository {
                 // Log detalhado de cada coleta antes da conversão
                 for (Pickup pickup : pickups) {
                     Log.d(TAG, "Coleta original - ID: " + pickup.getId() + ", Data agendada: '" + pickup.getScheduledDate() + "', Status: " + pickup.getStatus());
+                    // ADICIONADO: Log extra para debug da data
+                    if (pickup.getScheduledDate() == null || pickup.getScheduledDate().trim().isEmpty()) {
+                        Log.w(TAG, "ATENÇÃO: Coleta " + pickup.getId() + " tem scheduledDate null/vazio - será tratada como hoje");
+                    }
                 }
                 
                 List<PickupEntity> entities = PickupConverter.toEntityList(pickups, driverId);
@@ -523,27 +527,9 @@ public class OfflineRepository {
                     entities = pickupDao.getPickupsByDriverIdAndDate(driverId, date);
                     Log.d(TAG, "Coletas encontradas para a data específica: " + entities.size());
                     
-                    // SOLUÇÃO TEMPORÁRIA: Se não encontrar coletas por data específica,
-                    // retorna todas as coletas do motorista (problema: scheduled_date está null)
+                    // Se não há coletas para hoje, retorna lista vazia (comportamento correto)
                     if (entities.isEmpty()) {
-                        Log.w(TAG, "Nenhuma coleta encontrada para a data específica. Retornando todas as coletas do motorista.");
-                        entities = pickupDao.getPickupsByDriverId(driverId);
-                        Log.d(TAG, "Total de coletas retornadas como fallback: " + entities.size());
-                        
-                        // Filtra as coletas por data manualmente se necessário
-                        if (!entities.isEmpty()) {
-                            Log.d(TAG, "Aplicando filtro manual por data: " + date);
-                            List<PickupEntity> filteredEntities = new java.util.ArrayList<>();
-                            for (PickupEntity entity : entities) {
-                                if (entity.getScheduledDate() != null && entity.getScheduledDate().contains(date)) {
-                                    filteredEntities.add(entity);
-                                }
-                            }
-                            if (!filteredEntities.isEmpty()) {
-                                entities = filteredEntities;
-                                Log.d(TAG, "Coletas filtradas manualmente: " + entities.size());
-                            }
-                        }
+                        Log.d(TAG, "Nenhuma coleta encontrada para a data: " + date);
                     }
                     
                     // Debug: mostrar todas as coletas no cache
