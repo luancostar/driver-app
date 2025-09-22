@@ -483,6 +483,29 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             Log.d("FinalizePickupNotCompletedDialog", "Observação: " + observation);
             Log.d("FinalizePickupNotCompletedDialog", "ID da Ocorrência: " + occurrenceId);
             Log.d("FinalizePickupNotCompletedDialog", "driverAttachmentUrl: " + (driverAttachmentUrl != null && !driverAttachmentUrl.isEmpty() ? "presente" : "vazio"));
+            
+            // Observar o resultado da operação antes de fazer a chamada
+            final MainActivity finalActivity = activity;
+            final Occurrence finalOccurrence = occurrence;
+            final String finalObservation = observation;
+            
+            // Observer para o resultado da operação
+            finalActivity.getMainViewModel().updateResult.observe(finalActivity, result -> {
+                if (result != null && result.contains("sucesso")) {
+                    Log.d("FinalizePickupNotCompletedDialog", "Operação finalizada com sucesso, chamando listener");
+                    
+                    // Chamar o listener apenas após o sucesso
+                    if (listener != null) {
+                        listener.onFinalize(finalOccurrence, finalObservation);
+                    }
+                    
+                    // Remover o observer para evitar múltiplas chamadas
+                    finalActivity.getMainViewModel().updateResult.removeObservers(finalActivity);
+                    
+                    dismiss();
+                }
+            });
+            
             Log.d("FinalizePickupNotCompletedDialog", "Chamando MainViewModel.finalizePickupWithDetailsNotCompleted...");
             activity.getMainViewModel().finalizePickupWithDetailsNotCompleted(
                 currentPickup, 
@@ -493,13 +516,12 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             Log.d("FinalizePickupNotCompletedDialog", "Chamada do MainViewModel concluída");
         } else {
             Log.e("FinalizePickupNotCompletedDialog", "Não foi possível obter MainActivity. Context: " + getContext().getClass().getSimpleName());
+            
+            // Se não conseguir obter a MainActivity, chamar o listener mesmo assim
+            if (listener != null) {
+                listener.onFinalize(occurrence, observation);
+            }
+            dismiss();
         }
-        
-        // Chamar o listener original para compatibilidade
-        if (listener != null) {
-            listener.onFinalize(occurrence, observation);
-        }
-        
-        dismiss();
     }
 }

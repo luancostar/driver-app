@@ -540,12 +540,11 @@ public class MainActivity extends AppCompatActivity implements PickupAdapter.OnP
     private void showFinalizePickupNotCompletedDialog(final Pickup pickup) {
         FinalizePickupNotCompletedDialog dialog = new FinalizePickupNotCompletedDialog(this, pickup, 
             (occurrence, observation) -> {
-                // Mostrar informações capturadas (temporário para debug)
-                String message = "Coleta marcada como NÃO COLETADO\n" +
-                               "Ocorrência: " + occurrence.getName() + 
-                               " (Nº " + occurrence.getOccurrenceNumber() + ")" +
-                               "\nObservação: " + observation;
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                // O callback agora é executado APÓS a finalização bem-sucedida
+                // A chamada real da API já é feita no método finalizePickupWithDetails do diálogo
+                Log.d("MainActivity", "Coleta finalizada como NÃO COLETADO com sucesso");
+                Log.d("MainActivity", "Ocorrência: " + (occurrence != null ? occurrence.getName() : "N/A"));
+                Log.d("MainActivity", "Observação: " + observation);
             });
         dialog.show();
     }

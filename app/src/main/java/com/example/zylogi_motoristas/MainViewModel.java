@@ -32,6 +32,7 @@ import android.graphics.BitmapFactory;
 import com.example.zylogi_motoristas.offline.OfflineRepository;
 import com.example.zylogi_motoristas.offline.ConnectivityManager;
 import com.example.zylogi_motoristas.offline.SyncManager;
+import com.example.zylogi_motoristas.offline.PendingOperation;
 
 public class MainViewModel extends AndroidViewModel {
 
@@ -156,8 +157,8 @@ public class MainViewModel extends AndroidViewModel {
                 _isLoading.postValue(false);
                 return; 
             }
-
-            // CORREÇÃO: Garantir que sempre use o fuso horário do Brasil
+        
+        // CORREÇÃO: Garantir que sempre use o fuso horário do Brasil
         String today = LocalDate.now(ZoneId.of("America/Sao_Paulo"))
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
@@ -165,108 +166,186 @@ public class MainViewModel extends AndroidViewModel {
         android.util.Log.d("MainViewModel", "Data atual (Brasil): " + today);
         android.util.Log.d("MainViewModel", "Data atual (Sistema): " + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
 
-            // Tenta buscar da API primeiro
-            try {
-                apiService.getPickups(driverId, today, today).enqueue(new Callback<List<Pickup>>() {
-                    @Override
-                    public void onResponse(Call<List<Pickup>> call, Response<List<Pickup>> response) {
-                        try {
-                            if (response.isSuccessful() && response.body() != null) {
-                                List<Pickup> allPickupsFromAPI = response.body();
-
-                                // Filtra por data de agendamento para hoje com tratamento de erro
-                                List<Pickup> todayScheduledPickups = new java.util.ArrayList<>();
-                                for (Pickup pickup : allPickupsFromAPI) {
-                                    try {
-                                        if (pickup != null && isScheduledForToday(pickup.getScheduledDate())) {
-                                            todayScheduledPickups.add(pickup);
-                                        }
-                                    } catch (Exception e) {
-                                        android.util.Log.w("MainViewModel", "Erro ao filtrar coleta da API: " + e.getMessage());
-                                    }
+        // NOVA VERIFICAÇÃO: Verifica conectividade antes de tentar a API
+        if (connectivityManager.isConnected()) {
+            android.util.Log.d("MainViewModel", "Conectividade detectada - verificando operações pendentes");
+            
+            // CORREÇÃO PRINCIPAL: Força sincronização de operações pendentes PRIMEIRO
+            // ADICIONADO: Log mais detalhado para debug
+            android.util.Log.d("MainViewModel", "=== INICIANDO VERIFICAÇÃO DE OPERAÇÕES PENDENTES ===");
+            
+            syncManager.getPendingOperationsInfo(new SyncManager.PendingInfoCallback() {
+                @Override
+                public void onResult(int pendingCount, boolean isConnected) {
+                    android.util.Log.d("MainViewModel", "=== RESULTADO DA VERIFICAÇÃO ===");
+                    android.util.Log.d("MainViewModel", "Operações pendentes encontradas: " + pendingCount);
+                    android.util.Log.d("MainViewModel", "Status de conectividade: " + isConnected);
+                    
+                    if (pendingCount > 0) {
+                        android.util.Log.i("MainViewModel", "🔄 ENCONTRADAS " + pendingCount + " OPERAÇÕES PENDENTES - INICIANDO SINCRONIZAÇÃO");
+                        
+                        // ADICIONADO: Verificar detalhes das operações pendentes
+                        offlineRepository.getAllPendingOperations(new OfflineRepository.OperationListCallback() {
+                            @Override
+                            public void onSuccess(List<PendingOperation> operations) {
+                                android.util.Log.d("MainViewModel", "=== DETALHES DAS OPERAÇÕES PENDENTES ===");
+                                for (PendingOperation op : operations) {
+                                    android.util.Log.d("MainViewModel", String.format(
+                                        "Operação ID: %d, Pickup: %s, Tipo: %s, Tentativas: %d, Criada em: %d",
+                                        op.getId(), op.getPickupId(), op.getOperationType(), 
+                                        op.getRetryCount(), op.getCreatedAt()
+                                    ));
                                 }
+                                
+                                // Força sincronização das operações pendentes na main thread
+                                android.util.Log.i("MainViewModel", "🚀 FORÇANDO SINCRONIZAÇÃO AGORA");
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                    syncManager.forceSyncNow();
+                                });
+                                
+                                // Aguarda um pouco para a sincronização começar, depois busca da API
+                                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                    android.util.Log.d("MainViewModel", "⏰ DELAY CONCLUÍDO - BUSCANDO DA API");
+                                    fetchFromAPI(driverId, today);
+                                }, 2000); // Aumentado para 2 segundos
+                            }
+                            
+                            @Override
+                            public void onError(String error) {
+                                android.util.Log.e("MainViewModel", "❌ ERRO AO OBTER DETALHES DAS OPERAÇÕES: " + error);
+                                // Mesmo com erro, tenta sincronizar na main thread
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                    syncManager.forceSyncNow();
+                                });
+                                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                    fetchFromAPI(driverId, today);
+                                }, 2000);
+                            }
+                        });
+                    } else {
+                        android.util.Log.d("MainViewModel", "✅ NENHUMA OPERAÇÃO PENDENTE - BUSCANDO DIRETO DA API");
+                        // Não há operações pendentes, busca direto da API
+                        fetchFromAPI(driverId, today);
+                    }
+                }
+            });
+        } else {
+            // Sem conectividade - vai direto para o cache
+            android.util.Log.d("MainViewModel", "📵 SEM CONECTIVIDADE - CARREGANDO DO CACHE");
+            loadPickupsFromCache(driverId, today);
+        }
+    } catch (Exception e) {
+        android.util.Log.e("MainViewModel", "💥 ERRO CRÍTICO EM fetchPickups: " + e.getMessage(), e);
+        _error.postValue("Erro crítico ao buscar coletas");
+        _openPickups.postValue(new java.util.ArrayList<>());
+        calculateProgress(new java.util.ArrayList<>());
+        _isLoading.postValue(false);
+    }
+}
 
-                                // Salva as coletas no cache para uso offline
-                                try {
-                                    // PRIMEIRO: Limpa o cache do motorista para remover coletas antigas
-                                    offlineRepository.clearPickupCache(driverId, new OfflineRepository.OperationCallback() {
+// NOVO MÉTODO: Separar a busca da API para reutilizar
+private void fetchFromAPI(String driverId, String today) {
+    try {
+        android.util.Log.d("MainViewModel", "Buscando coletas da API");
+        
+        apiService.getPickups(driverId, today, today).enqueue(new Callback<List<Pickup>>() {
+            @Override
+            public void onResponse(Call<List<Pickup>> call, Response<List<Pickup>> response) {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<Pickup> allPickupsFromAPI = response.body();
+                        android.util.Log.d("MainViewModel", "API retornou " + allPickupsFromAPI.size() + " coletas");
+
+                        // Filtra por data de agendamento para hoje com tratamento de erro
+                        List<Pickup> todayScheduledPickups = new java.util.ArrayList<>();
+                        for (Pickup pickup : allPickupsFromAPI) {
+                            try {
+                                if (pickup != null && isScheduledForToday(pickup.getScheduledDate())) {
+                                    todayScheduledPickups.add(pickup);
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.w("MainViewModel", "Erro ao filtrar coleta da API: " + e.getMessage());
+                            }
+                        }
+
+                        // Salva as coletas no cache para uso offline
+                        try {
+                            // PRIMEIRO: Limpa o cache do motorista para remover coletas antigas
+                            offlineRepository.clearPickupCache(driverId, new OfflineRepository.OperationCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    // DEPOIS: Salva as novas coletas
+                                    offlineRepository.cachePickups(todayScheduledPickups, driverId, new OfflineRepository.PickupCacheCallback() {
                                         @Override
-                                        public void onSuccess() {
-                                            // DEPOIS: Salva as novas coletas
-                                            offlineRepository.cachePickups(todayScheduledPickups, driverId, new OfflineRepository.PickupCacheCallback() {
-                                                @Override
-                                                public void onSuccess(int count) {
-                                                    android.util.Log.d("MainViewModel", "Cache limpo e " + count + " coletas salvas");
-                                                }
-
-                                                @Override
-                                                public void onError(String error) {
-                                                    android.util.Log.e("MainViewModel", "Erro ao salvar no cache: " + error);
-                                                }
-                                            });
+                                        public void onSuccess(int count) {
+                                            android.util.Log.d("MainViewModel", "Cache limpo e " + count + " coletas salvas");
                                         }
 
                                         @Override
                                         public void onError(String error) {
-                                            android.util.Log.e("MainViewModel", "Erro ao limpar cache: " + error);
+                                            android.util.Log.e("MainViewModel", "Erro ao salvar no cache: " + error);
                                         }
                                     });
-                                } catch (Exception e) {
-                                    android.util.Log.w("MainViewModel", "Erro ao gerenciar cache: " + e.getMessage());
                                 }
-                                
-                                // Carrega e armazena ocorrências no cache quando online
-                                loadAndCacheOccurrences();
 
-                                // Filtra para mostrar apenas as pendentes no carrossel
-                                List<Pickup> pendingPickups = new java.util.ArrayList<>();
-                                for (Pickup pickup : todayScheduledPickups) {
-                                    try {
-                                        if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
-                                            pendingPickups.add(pickup);
-                                        }
-                                    } catch (Exception e) {
-                                        android.util.Log.w("MainViewModel", "Erro ao filtrar coleta pendente da API: " + e.getMessage());
-                                    }
+                                @Override
+                                public void onError(String error) {
+                                    android.util.Log.e("MainViewModel", "Erro ao limpar cache: " + error);
                                 }
-                                _openPickups.postValue(pendingPickups);
-
-                                // Calcula o progresso com base em TODAS as coletas do dia
-                                calculateProgress(todayScheduledPickups);
-                            } else {
-                                // Se a API falhar, tenta buscar do cache
-                                android.util.Log.w("MainViewModel", "Resposta da API não bem-sucedida, tentando cache");
-                                loadPickupsFromCache(driverId, today);
-                                return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
-                            }
+                            });
                         } catch (Exception e) {
-                            android.util.Log.e("MainViewModel", "Erro ao processar resposta da API: " + e.getMessage(), e);
-                            loadPickupsFromCache(driverId, today);
-                            return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
+                            android.util.Log.w("MainViewModel", "Erro ao gerenciar cache: " + e.getMessage());
                         }
-                        _isLoading.postValue(false);
-                    }
+                        
+                        // Carrega e armazena ocorrências no cache quando online
+                        loadAndCacheOccurrences();
 
-                    @Override
-                    public void onFailure(Call<List<Pickup>> call, Throwable t) {
-                        android.util.Log.w("MainViewModel", "Falha na API, tentando cache: " + t.getMessage());
-                        // Se não conseguir conectar na API, busca do cache
+                        // Filtra para mostrar apenas as pendentes no carrossel
+                        List<Pickup> pendingPickups = new java.util.ArrayList<>();
+                        for (Pickup pickup : todayScheduledPickups) {
+                            try {
+                                if (pickup != null && "PENDING".equalsIgnoreCase(pickup.getStatus())) {
+                                    pendingPickups.add(pickup);
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.w("MainViewModel", "Erro ao filtrar coleta pendente da API: " + e.getMessage());
+                            }
+                        }
+                        _openPickups.postValue(pendingPickups);
+
+                        // Calcula o progresso com base em TODAS as coletas do dia
+                        calculateProgress(todayScheduledPickups);
+                        
+                        // Indica que os dados vieram da API
+                        _error.postValue("Dados atualizados da API - " + pendingPickups.size() + " coletas pendentes");
+                    } else {
+                        // Se a API falhar, tenta buscar do cache
+                        android.util.Log.w("MainViewModel", "Resposta da API não bem-sucedida (código: " + response.code() + "), tentando cache");
                         loadPickupsFromCache(driverId, today);
+                        return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
                     }
-                });
-            } catch (Exception e) {
-                android.util.Log.e("MainViewModel", "Erro ao fazer chamada da API: " + e.getMessage(), e);
+                } catch (Exception e) {
+                    android.util.Log.e("MainViewModel", "Erro ao processar resposta da API: " + e.getMessage(), e);
+                    loadPickupsFromCache(driverId, today);
+                    return; // Não define _isLoading aqui, será definido no loadPickupsFromCache
+                }
+                _isLoading.postValue(false);
+            }
+
+            @Override
+            public void onFailure(Call<List<Pickup>> call, Throwable t) {
+                android.util.Log.w("MainViewModel", "Falha na API: " + t.getMessage() + ", tentando cache");
+                // Se não conseguir conectar na API, busca do cache
                 loadPickupsFromCache(driverId, today);
             }
-        } catch (Exception e) {
-            android.util.Log.e("MainViewModel", "Erro crítico em fetchPickups: " + e.getMessage(), e);
-            _error.postValue("Erro crítico ao buscar coletas");
-            _openPickups.postValue(new java.util.ArrayList<>());
-            calculateProgress(new java.util.ArrayList<>());
-            _isLoading.postValue(false);
-        }
+        });
+    } catch (Exception e) {
+        android.util.Log.e("MainViewModel", "Erro ao fazer chamada da API: " + e.getMessage(), e);
+        loadPickupsFromCache(driverId, today);
     }
-    
+}
+
+
     /**
      * Carrega coletas do cache local quando a API não está disponível
      */

@@ -15,6 +15,5 @@
         <item name="android:statusBarColor">@color/zylogi_brand_blue</item>
         <item name="android:navigationBarColor">@android:color/white</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

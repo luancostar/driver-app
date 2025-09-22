@@ -206,8 +206,12 @@ public class SyncWorker extends Worker {
                 occurrenceIdBody = RequestBody.create(MediaType.parse("text/plain"), operation.getOccurrenceId());
             }
             
-            RequestBody packagesBody = operation.getDriverNumberPackages() != null ? 
-                RequestBody.create(MediaType.parse("text/plain"), operation.getDriverNumberPackages().toString()) : null;
+            RequestBody packagesBody = null;
+            if (operation.getDriverNumberPackages() != null) {
+                // Garantir que seja uma string numérica válida
+                String packagesValue = String.valueOf(operation.getDriverNumberPackages());
+                packagesBody = RequestBody.create(MediaType.parse("text/plain"), packagesValue);
+            }
             
             // CompletionDate: converte timestamp para ISO 8601
             RequestBody completionDateBody = null;
@@ -313,9 +317,11 @@ public class SyncWorker extends Worker {
                 updates.put("occurrenceId", operation.getOccurrenceId());
             }
             
-            // Adicionar número de pacotes se disponível
+            // Adicionar número de pacotes se disponível (como string numérica)
             if (operation.getDriverNumberPackages() != null) {
-                updates.put("driverNumberPackages", operation.getDriverNumberPackages());
+                // Garantir que seja enviado como string numérica
+                String packagesValue = String.valueOf(operation.getDriverNumberPackages());
+                updates.put("driverNumberPackages", packagesValue);
             }
             
             Log.d(TAG, "Sincronizando operação sem foto: " + operation.getPickupId() + " com status: " + operation.getOperationType());

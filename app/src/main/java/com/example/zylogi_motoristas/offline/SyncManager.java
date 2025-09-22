@@ -192,54 +192,57 @@ public class SyncManager implements ConnectivityManager.ConnectivityListener {
      * Observa o progresso do trabalho de sincronização
      */
     private void observeWorkProgress(java.util.UUID workId) {
-        workManager.getWorkInfoByIdLiveData(workId).observeForever(workInfo -> {
-            if (workInfo != null) {
-                WorkInfo.State state = workInfo.getState();
-                
-                switch (state) {
-                    case RUNNING:
-                        Log.d(TAG, "Sincronização em execução");
-                        notifyStatusListener(SyncStatus.RUNNING, null);
-                        break;
-                        
-                    case SUCCEEDED:
-                        Data outputData = workInfo.getOutputData();
-                        int total = outputData.getInt("total_operations", 0);
-                        int successful = outputData.getInt("successful_operations", 0);
-                        int failed = outputData.getInt("failed_operations", 0);
-                        
-                        String message = String.format("Sincronizadas %d de %d operações", successful, total);
-                        Log.i(TAG, "Sincronização concluída: " + message);
-                        notifyStatusListener(SyncStatus.SUCCESS, message);
-                        
-                        // Notifica os SyncListeners sobre a conclusão
-                        notifySyncCompleted(successful, failed);
-                        break;
-                        
-                    case FAILED:
-                        Log.w(TAG, "Sincronização falhou");
-                        notifyStatusListener(SyncStatus.FAILED, "Falha na sincronização");
-                        
-                        // Notifica os SyncListeners sobre a falha
-                        notifySyncFailed("Falha na sincronização");
-                        break;
-                        
-                    case CANCELLED:
-                        Log.i(TAG, "Sincronização cancelada");
-                        notifyStatusListener(SyncStatus.CANCELLED, "Sincronização cancelada");
-                        break;
-                        
-                    case ENQUEUED:
-                        Log.d(TAG, "Sincronização na fila");
-                        notifyStatusListener(SyncStatus.QUEUED, null);
-                        break;
-                        
-                    case BLOCKED:
-                        Log.d(TAG, "Sincronização bloqueada (aguardando constraints)");
-                        notifyStatusListener(SyncStatus.WAITING, "Aguardando conectividade");
-                        break;
+        // Garante que observeForever seja chamado na main thread
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            workManager.getWorkInfoByIdLiveData(workId).observeForever(workInfo -> {
+                if (workInfo != null) {
+                    WorkInfo.State state = workInfo.getState();
+                    
+                    switch (state) {
+                        case RUNNING:
+                            Log.d(TAG, "Sincronização em execução");
+                            notifyStatusListener(SyncStatus.RUNNING, null);
+                            break;
+                            
+                        case SUCCEEDED:
+                            Data outputData = workInfo.getOutputData();
+                            int total = outputData.getInt("total_operations", 0);
+                            int successful = outputData.getInt("successful_operations", 0);
+                            int failed = outputData.getInt("failed_operations", 0);
+                            
+                            String message = String.format("Sincronizadas %d de %d operações", successful, total);
+                            Log.i(TAG, "Sincronização concluída: " + message);
+                            notifyStatusListener(SyncStatus.SUCCESS, message);
+                            
+                            // Notifica os SyncListeners sobre a conclusão
+                            notifySyncCompleted(successful, failed);
+                            break;
+                            
+                        case FAILED:
+                            Log.w(TAG, "Sincronização falhou");
+                            notifyStatusListener(SyncStatus.FAILED, "Falha na sincronização");
+                            
+                            // Notifica os SyncListeners sobre a falha
+                            notifySyncFailed("Falha na sincronização");
+                            break;
+                            
+                        case CANCELLED:
+                            Log.i(TAG, "Sincronização cancelada");
+                            notifyStatusListener(SyncStatus.CANCELLED, "Sincronização cancelada");
+                            break;
+                            
+                        case ENQUEUED:
+                            Log.d(TAG, "Sincronização na fila");
+                            notifyStatusListener(SyncStatus.QUEUED, null);
+                            break;
+                            
+                        case BLOCKED:
+                            Log.d(TAG, "Sincronização bloqueada (aguardando constraints)");
+                            notifyStatusListener(SyncStatus.WAITING, "Aguardando conectividade");
+                            break;
+                    }
                 }
-            }
+            });
         });
     }
     
