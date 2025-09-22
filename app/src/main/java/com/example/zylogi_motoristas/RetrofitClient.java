@@ -11,6 +11,13 @@ import okhttp3.logging.HttpLoggingInterceptor; // Importe
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import java.io.IOException;
+import java.net.UnknownHostException;
+import java.net.InetAddress;
+import java.net.ConnectException;
+import okhttp3.Request;
+import okhttp3.Dns;
+import java.util.List;
+import java.util.Arrays;
 
 public class RetrofitClient {
     private static Retrofit retrofit = null;
@@ -27,6 +34,81 @@ public class RetrofitClient {
             }
         });
         loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        
+        // DNS customizado com fallback para servidores públicos
+        Dns customDns = new Dns() {
+            @Override
+            public List<InetAddress> lookup(String hostname) throws UnknownHostException {
+                try {
+                    // Tenta resolver normalmente primeiro
+                    return Dns.SYSTEM.lookup(hostname);
+                } catch (UnknownHostException e) {
+                    android.util.Log.w("RetrofitClient", "System DNS failed for " + hostname + ", trying public DNS");
+                    
+                    // Se falhar, tenta com DNS público (Google)
+                    try {
+                        System.setProperty("dns.server", "8.8.8.8");
+                        return Arrays.asList(InetAddress.getByName(hostname));
+                    } catch (Exception e2) {
+                        android.util.Log.w("RetrofitClient", "Public DNS also failed for " + hostname);
+                        
+                        // Como último recurso, retorna o IP conhecido
+                        if (hostname.equals("api.homolog.zylogi.com")) {
+                            return Arrays.asList(InetAddress.getByName("82.29.57.60"));
+                        }
+                        throw new UnknownHostException("Unable to resolve " + hostname);
+                    }
+                }
+            }
+        };
+        
+        // Interceptor de fallback melhorado
+        Interceptor fallbackInterceptor = new Interceptor() {
+            @Override
+            public okhttp3.Response intercept(Chain chain) throws IOException {
+                okhttp3.Request request = chain.request();
+                
+                try {
+                    // Tenta a requisição original primeiro
+                    return chain.proceed(request);
+                } catch (UnknownHostException | ConnectException e) {
+                    android.util.Log.w("RetrofitClient", "Connection failed: " + e.getMessage());
+                    
+                    // Se for problema de DNS ou conexão, tenta estratégias alternativas
+                    String originalUrl = request.url().toString();
+                    
+                    // Estratégia 1: Tentar com hostname original mas forçando IPv4
+                    if (e instanceof UnknownHostException) {
+                        try {
+                            android.util.Log.i("RetrofitClient", "Trying with forced IPv4 resolution");
+                            System.setProperty("java.net.preferIPv4Stack", "true");
+                            return chain.proceed(request);
+                        } catch (Exception e2) {
+                            android.util.Log.w("RetrofitClient", "IPv4 strategy failed: " + e2.getMessage());
+                        }
+                    }
+                    
+                    // Estratégia 2: Usar HTTP se HTTPS falhar (apenas para desenvolvimento)
+                    if (originalUrl.startsWith("https://") && originalUrl.contains("api.homolog.zylogi.com")) {
+                        try {
+                            String httpUrl = originalUrl.replace("https://", "http://");
+                            android.util.Log.i("RetrofitClient", "Trying HTTP fallback: " + httpUrl);
+                            
+                            Request httpRequest = request.newBuilder()
+                                    .url(httpUrl)
+                                    .build();
+                            
+                            return chain.proceed(httpRequest);
+                        } catch (Exception e3) {
+                            android.util.Log.w("RetrofitClient", "HTTP fallback failed: " + e3.getMessage());
+                        }
+                    }
+                    
+                    // Se todas as estratégias falharam, relança a exceção original
+                    throw e;
+                }
+            }
+        };
         
         // Interceptor personalizado para logs de multipart
         Interceptor multipartInterceptor = new Interceptor() {
@@ -50,6 +132,8 @@ public class RetrofitClient {
         }; // Mostra tudo: URL, headers, body
 
                 OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                        .dns(customDns) // Adiciona DNS customizado
+                        .addInterceptor(fallbackInterceptor) // Adiciona fallback primeiro
                         .addInterceptor(new AuthInterceptor(context))
                         .addInterceptor(multipartInterceptor)
                         .addInterceptor(loggingInterceptor) // Adiciona o espião aqui

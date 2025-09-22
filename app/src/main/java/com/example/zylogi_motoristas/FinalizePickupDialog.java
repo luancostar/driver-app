@@ -75,6 +75,11 @@ public class FinalizePickupDialog extends Dialog {
         buttonGallery = view.findViewById(R.id.buttonGallery);
         textViewPhotoStatus = view.findViewById(R.id.textViewPhotoStatus);
 
+        // Configurar estado inicial do textViewPhotoStatus
+        textViewPhotoStatus.setText("Nenhuma foto selecionada");
+        textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.darker_gray));
+        textViewPhotoStatus.setVisibility(View.VISIBLE);
+
         // Para coletas coletadas, ocultar spinner de ocorrências e mostrar campo de quantidade
         labelOccurrence.setVisibility(View.GONE);
         spinnerOccurrence.setVisibility(View.GONE);

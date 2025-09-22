@@ -69,6 +69,11 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
         buttonGallery = view.findViewById(R.id.buttonGallery);
         textViewPhotoStatus = view.findViewById(R.id.textViewPhotoStatus);
         
+        // Configurar estado inicial do textViewPhotoStatus
+        textViewPhotoStatus.setText("Nenhuma foto selecionada");
+        textViewPhotoStatus.setTextColor(getContext().getResources().getColor(android.R.color.darker_gray));
+        textViewPhotoStatus.setVisibility(View.VISIBLE);
+        
         // Configurar o texto do pickup
         if (pickup != null && pickup.getReferenceId() != null) {
             textViewPickupIdDialog.setText("🆔 Coleta: " + pickup.getReferenceId());
@@ -491,10 +496,11 @@ public class FinalizePickupNotCompletedDialog extends Dialog {
             
             // Observer para o resultado da operação
             finalActivity.getMainViewModel().updateResult.observe(finalActivity, result -> {
-                if (result != null && result.contains("sucesso")) {
-                    Log.d("FinalizePickupNotCompletedDialog", "Operação finalizada com sucesso, chamando listener");
+                if (result != null && (result.contains("sucesso") || result.contains("salva offline"))) {
+                    Log.d("FinalizePickupNotCompletedDialog", "Operação finalizada (online ou offline), chamando listener");
+                    Log.d("FinalizePickupNotCompletedDialog", "Resultado: " + result);
                     
-                    // Chamar o listener apenas após o sucesso
+                    // Chamar o listener após sucesso online ou salvamento offline
                     if (listener != null) {
                         listener.onFinalize(finalOccurrence, finalObservation);
                     }

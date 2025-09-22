@@ -22,6 +22,7 @@ import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import android.util.Base64;
+import android.util.Log;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -102,12 +103,23 @@ public class MainViewModel extends AndroidViewModel {
     private void saveOperationOffline(Pickup pickup, String operationType, String observationDriver, String occurrenceId, String driverAttachmentUrl, Integer driverNumberPackages) {
         // Extrair apenas o Base64 da string data:image/jpeg;base64,
         String photoBase64 = null;
+        Log.d("MainViewModel", "saveOperationOffline - Tipo: " + operationType + ", Pickup: " + pickup.getId());
+        Log.d("MainViewModel", "saveOperationOffline - driverAttachmentUrl: " + (driverAttachmentUrl != null ? "[" + driverAttachmentUrl.length() + " chars]" : "null"));
+        
         if (driverAttachmentUrl != null && driverAttachmentUrl.startsWith("data:image/")) {
             int commaIndex = driverAttachmentUrl.indexOf(",");
             if (commaIndex != -1 && commaIndex < driverAttachmentUrl.length() - 1) {
                 photoBase64 = driverAttachmentUrl.substring(commaIndex + 1);
+                Log.d("MainViewModel", "saveOperationOffline - photoBase64 extraído: [" + photoBase64.length() + " chars]");
+            } else {
+                Log.w("MainViewModel", "saveOperationOffline - Formato de imagem inválido, vírgula não encontrada");
             }
+        } else {
+            Log.d("MainViewModel", "saveOperationOffline - Nenhum anexo fornecido ou formato inválido");
         }
+        
+        // Criar variável final para uso no callback
+        final String finalPhotoBase64 = photoBase64;
         
         offlineRepository.saveOperation(
                 pickup.getId(),
@@ -119,7 +131,8 @@ public class MainViewModel extends AndroidViewModel {
                 new OfflineRepository.OperationSaveCallback() {
                     @Override
                 public void onSuccess(long operationId) {
-                android.util.Log.i("MainViewModel", "Operação salva offline com sucesso");
+                android.util.Log.i("MainViewModel", "Operação salva offline com ID: " + operationId + ", Tipo: " + operationType);
+                android.util.Log.d("MainViewModel", "Anexo salvo: " + (finalPhotoBase64 != null ? "SIM [" + finalPhotoBase64.length() + " chars]" : "NÃO"));
                 _isLoading.postValue(false);
                 _updateResult.postValue("Operação salva offline. Será sincronizada quando houver conexão.");
                     
@@ -132,7 +145,7 @@ public class MainViewModel extends AndroidViewModel {
                 
                 @Override
                 public void onError(String error) {
-                    android.util.Log.e("MainViewModel", "Erro ao salvar operação offline: " + error);
+                    android.util.Log.e("MainViewModel", "Erro ao salvar operação offline (" + operationType + "): " + error);
                     _isLoading.postValue(false);
                     _updateResult.postValue("Erro ao salvar operação offline: " + error);
                 }
