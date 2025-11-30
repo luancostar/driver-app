@@ -23,20 +23,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // buildConfigField("String", "API_BASE_URL", "\"https://api.vblog.zylogi.com/\"")
+             buildConfigField("String", "API_BASE_URL", "\"https://api.vblog.zylogi.com/\"")
 
             // Variável de ambiente para homologação
-            buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
+            // buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
             // Endpoint local para desenvolvimento (usando IP direto)
             // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/\"")
             // buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.11:3001/\"")
         }
         // ADICIONADO: Bloco para o modo de desenvolvimento
         debug {
-            //  buildConfigField("String", "API_BASE_URL", "\"https://api.vblog.zylogi.com/\"")
+             buildConfigField("String", "API_BASE_URL", "\"https://api.vblog.zylogi.com/\"")
 
             // Variável de ambiente para homologação (desenvolvimento)
-            buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
+            // buildConfigField("String", "API_BASE_URL", "\"https://api.homolog.zylogi.com/\"")
             // Endpoint local para desenvolvimento (usando IP direto)
             // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001/\"")
             // buildConfigField("String", "API_BASE_URL", "\"http://192.168.1.11:3001/\"")

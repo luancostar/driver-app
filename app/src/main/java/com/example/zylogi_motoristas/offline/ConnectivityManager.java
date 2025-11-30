@@ -20,6 +20,7 @@ public class ConnectivityManager {
     
     private final android.net.ConnectivityManager systemConnectivityManager;
     private final List<ConnectivityListener> listeners;
+    private final Context appContext;
     private boolean isConnected = false;
     private NetworkCallback networkCallback;
     
@@ -29,8 +30,9 @@ public class ConnectivityManager {
     }
     
     private ConnectivityManager(Context context) {
-        systemConnectivityManager = (android.net.ConnectivityManager) 
-            context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        this.appContext = context.getApplicationContext();
+        systemConnectivityManager = (android.net.ConnectivityManager)
+            appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         listeners = new ArrayList<>();
         
         // Verifica o status inicial
@@ -224,6 +226,12 @@ public class ConnectivityManager {
                         if (!wasConnected) {
                              Log.i(TAG, "Conectividade restaurada");
                              ConnectivityManager.this.notifyListeners(true);
+                             try {
+                                 // Fallback: aciona SyncManager diretamente para garantir reenvio
+                                 SyncManager.getInstance(appContext).syncNow();
+                             } catch (Exception e) {
+                                 Log.e(TAG, "Erro ao acionar SyncManager na restauração de conectividade", e);
+                             }
                          }
                     }
                 } catch (Exception e) {

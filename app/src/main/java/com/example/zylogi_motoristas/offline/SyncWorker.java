@@ -213,21 +213,8 @@ public class SyncWorker extends Worker {
                 packagesBody = RequestBody.create(MediaType.parse("text/plain"), packagesValue);
             }
             
-            // CompletionDate: converte timestamp para ISO 8601
+            // NOTE: API rejects 'completionDate' for this endpoint (Bad Request). We intentionally omit it.
             RequestBody completionDateBody = null;
-            if (operation.getCompletionDate() != null) {
-                try {
-                    long timestamp = Long.parseLong(operation.getCompletionDate());
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-                    sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                    String isoDate = sdf.format(new java.util.Date(timestamp));
-                    completionDateBody = RequestBody.create(MediaType.parse("text/plain"), isoDate);
-                } catch (NumberFormatException e) {
-                    Log.w(TAG, "Formato de data inválido: " + operation.getCompletionDate());
-                    // Se já estiver em formato ISO, usa como está
-                    completionDateBody = RequestBody.create(MediaType.parse("text/plain"), operation.getCompletionDate());
-                }
-            }
             
             // Faz a chamada da API
             Call<Pickup> call = apiService.finalizePickupWithPhoto(
@@ -292,20 +279,7 @@ public class SyncWorker extends Worker {
             java.util.Map<String, Object> updates = new java.util.HashMap<>();
             updates.put("status", operation.getOperationType());
             
-            // Adicionar data de finalização se disponível (convertendo para ISO 8601)
-            if (operation.getCompletionDate() != null) {
-                try {
-                    long timestamp = Long.parseLong(operation.getCompletionDate());
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-                    sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                    String isoDate = sdf.format(new java.util.Date(timestamp));
-                    updates.put("completionDate", isoDate);
-                } catch (NumberFormatException e) {
-                    Log.w(TAG, "Formato de data inválido: " + operation.getCompletionDate());
-                    // Se já estiver em formato ISO, usa como está
-                    updates.put("completionDate", operation.getCompletionDate());
-                }
-            }
+            // NOTE: API rejects 'completionDate' for this endpoint (Bad Request). We omit completionDate from JSON updates.
             
             // Adicionar observação do motorista se disponível
             if (operation.getObservationDriver() != null && !operation.getObservationDriver().trim().isEmpty()) {

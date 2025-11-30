@@ -139,8 +139,20 @@ public class MainViewModel extends AndroidViewModel {
                     // Atualizar a lista de coletas
                     fetchPickups();
                     
-                    // Tentar sincronizar imediatamente
-                    syncManager.syncNow();
+                    // Tentar sincronizar imediatamente (com pequeno delay para evitar race com commit DB)
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        try {
+                            // Envia broadcast de força de sincronização (SyncManager tem BroadcastReceiver)
+                            android.content.Intent intent = new android.content.Intent("com.example.zylogi_motoristas.FORCE_SYNC");
+                            android.content.Context appCtx = getApplication();
+                            appCtx.sendBroadcast(intent);
+
+                            // Também chama diretamente como fallback
+                            syncManager.syncNow();
+                        } catch (Exception e) {
+                            android.util.Log.e("MainViewModel", "Erro ao tentar acionar sincronização após salvar offline", e);
+                        }
+                    }, 300);
                 }
                 
                 @Override
